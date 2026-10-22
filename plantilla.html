@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Producción lechera por vaca, demo de AIOROS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Paleta: potrero (rampa de verdes validada, una por número de lactancia), arete amarillo
+   como único acento, rojo y ámbar reservados para alertas. Fondo claro de salvia frío. */
+:root{
+  --hoja:#FFFFFF; --salvia:#EEF2EA; --tinta:#1F3326; --tinta2:#4A5A4E; --tenue:#6B796E;
+  --linea:#DCE3D6; --rejilla:#E9EEE5;
+  --l1:#7FB46F; --l2:#4E944F; --l3:#2C7340; --l4:#1A5130; --ref:#8A958C;
+  --arete:#F5C400; --arete-b:#C99E00;
+  --vig:#7A5200; --vig-bg:#FFF1C7; --vig-i:#D89A00;
+  --ano:#A3262A; --ano-bg:#FBE5E5; --ano-i:#D03B3B;
+  --texto:"Barlow","Segoe UI",system-ui,sans-serif;
+  --numero:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif;
+}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;background:var(--hoja);color:var(--tinta);font:16px/1.55 var(--texto);
+  -webkit-font-smoothing:antialiased;font-variant-numeric:lining-nums}
+.ancho{max-width:1180px;margin:0 auto;padding:0 32px}
+a{color:var(--l3)}
+b,strong{font-weight:600}
+:focus-visible{outline:2px solid var(--l3);outline-offset:2px;border-radius:3px}
+
+/* cabecera */
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;
+  padding:22px 0 18px}
+.top h1{margin:0;font:700 21px/1.2 var(--numero);letter-spacing:.2px}
+.top p{margin:0;color:var(--tenue);font-size:13px}
+
+/* portada: el hallazgo y la curva */
+.portada{background:var(--salvia);padding:44px 0 40px}
+.hallazgo{margin:0 0 14px;font:700 50px/1.02 var(--numero);letter-spacing:-.3px;max-width:28ch}
+.bajada{margin:0 0 26px;max-width:66ch;color:var(--tinta2);font-size:15.5px}
+.pie{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-top:12px}
+.leyenda{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--tinta2)}
+.leyenda span{display:flex;align-items:center;gap:7px}
+.leyenda i{width:18px;height:3px;border-radius:2px;display:inline-block}
+.leyenda i.punteada{background:repeating-linear-gradient(90deg,var(--ref) 0 5px,transparent 5px 8px)!important}
+.enlace{background:none;border:0;padding:4px 0;color:var(--l3);font:600 14px var(--texto);cursor:pointer;
+  text-decoration:underline;text-underline-offset:3px}
+
+/* gráficas */
+.grafica{position:relative}
+.grafica svg{width:100%;height:auto;display:block;background:var(--hoja);border:1px solid var(--linea);border-radius:6px}
+.rj{stroke:var(--rejilla);stroke-width:1}
+.base{stroke:#B9C4B4;stroke-width:1}
+.ej{fill:var(--tenue);font:12px var(--texto)}
+.et{fill:var(--tinta2);font:600 13px var(--texto)}
+.cruz{opacity:0}
+.cruz line{stroke:var(--tinta2);stroke-width:1;stroke-dasharray:3 3}
+.globo{position:absolute;pointer-events:none;opacity:0;background:var(--hoja);border:1px solid #C9D3C4;
+  border-radius:6px;padding:9px 12px;font-size:13px;white-space:nowrap;z-index:5;
+  box-shadow:0 3px 10px rgba(31,51,38,.10)}
+.globo .g1{color:var(--tenue);font-size:12px;margin-bottom:4px}
+.globo .gf{display:flex;align-items:center;gap:7px;font-variant-numeric:tabular-nums}
+.globo .gf i{width:12px;height:3px;border-radius:2px;display:inline-block}
+@media (prefers-reduced-motion:no-preference){
+  .dibujar{animation:trazo 1.5s cubic-bezier(.3,.7,.2,1) both}
+  @keyframes trazo{from{stroke-dashoffset:var(--largo)}to{stroke-dashoffset:0}}
+}
+
+/* tablas */
+.tabla{display:none;overflow:auto;max-height:360px;border:1px solid var(--linea);border-radius:6px;background:var(--hoja)}
+.tabla.ver{display:block}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-weight:600;color:var(--tinta2);padding:9px 12px;border-bottom:1.5px solid var(--linea);
+  background:var(--hoja);position:sticky;top:0}
+td{padding:8px 12px;border-bottom:1px solid var(--rejilla);font-variant-numeric:tabular-nums;white-space:nowrap}
+.n{text-align:right}
+.desliza{overflow-x:auto;min-width:0}
+.ficha-cuerpo > div,.tres > div,.registro > div{min-width:0}
+
+/* arete: el número de cada vaca */
+.arete{position:relative;display:inline-flex;align-items:flex-end;justify-content:center;flex:none;
+  width:60px;height:44px;margin-top:9px;padding-bottom:5px;background:var(--arete);
+  border:1.5px solid var(--arete-b);border-radius:8px 8px 13px 13px;
+  font:700 17px/1 var(--numero);color:#1A1A1A;letter-spacing:.3px}
+.arete::after{content:"";position:absolute;top:-10px;left:50%;width:20px;height:13px;margin-left:-10px;
+  background:var(--arete);border:1.5px solid var(--arete-b);border-bottom:0;border-radius:7px 7px 0 0}
+.arete::before{content:"";position:absolute;top:-5px;left:50%;width:7px;height:7px;margin-left:-3.5px;
+  border-radius:50%;background:var(--hoja);box-shadow:inset 0 0 0 1.5px var(--arete-b);z-index:1}
+.arete.grande{width:96px;height:68px;margin-top:14px;padding-bottom:8px;font-size:27px;border-radius:11px 11px 18px 18px}
+.arete.grande::after{top:-14px;width:30px;height:18px;margin-left:-15px;border-radius:9px 9px 0 0}
+.arete.grande::before{top:-7px;width:10px;height:10px;margin-left:-5px}
+
+/* registro de vacas */
+.registro{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:46px 0 10px}
+.registro > div{padding:0 32px 0 0}
+.registro > div + div{padding:0 0 0 32px;border-left:1px solid var(--linea)}
+.registro h2,.ficha h2,.metodo h2{margin:0 0 8px;font:700 27px/1.12 var(--numero);letter-spacing:-.1px}
+.registro p.intro{margin:0 0 14px;color:var(--tinta2);max-width:58ch;font-size:14.5px}
+.boton{display:inline-flex;align-items:center;gap:7px;background:var(--hoja);color:var(--tinta);
+  border:1.5px solid #B9C4B4;border-radius:6px;padding:7px 13px;font:600 14px var(--texto);cursor:pointer}
+.boton:hover{border-color:var(--l3)}
+.boton svg{width:14px;height:14px}
+.filas{list-style:none;margin:16px 0 0;padding:0;max-height:560px;overflow:auto;border-top:1.5px solid var(--linea)}
+.fila{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;width:100%;text-align:left;
+  background:none;border:0;border-bottom:1px solid var(--linea);padding:12px 6px 12px 2px;cursor:pointer;
+  font:inherit;color:inherit}
+.fila:hover{background:#F6F8F3}
+.fila .cab{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.fila b{font-size:15.5px;font-weight:600}
+.fila .lact{color:var(--tenue);font-size:12.5px;white-space:nowrap}
+.fila ul{margin:4px 0 0;padding-left:17px;color:var(--tinta2);font-size:13.5px;line-height:1.5}
+
+/* estados */
+.estado{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:4px 10px;
+  border-radius:5px;margin:0 6px 6px 0}
+.estado svg{width:14px;height:14px;flex:none}
+.e-vig{background:var(--vig-bg);color:var(--vig)} .e-vig svg{color:var(--vig-i)}
+.e-ano{background:var(--ano-bg);color:var(--ano)} .e-ano svg{color:var(--ano-i)}
+.e-ok{background:var(--salvia);color:var(--tinta2)}
+
+/* ficha de la vaca */
+.ficha{padding:46px 0 48px}
+.ficha-cab{display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:start;margin-bottom:20px}
+.ficha-cab h2{margin:12px 0 4px}
+.ficha-cab p{margin:0 0 10px;color:var(--tinta2)}
+.buscar{position:relative;width:300px}
+.buscar label{display:block;font-size:13px;font-weight:600;color:var(--tinta2);margin-bottom:5px}
+.buscar input{width:100%;font:15px var(--texto);color:var(--tinta);background:var(--hoja);
+  border:1.5px solid #B9C4B4;border-radius:6px;padding:9px 12px}
+.buscar input:focus{outline:none;border-color:var(--l3)}
+.sug{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--hoja);border:1px solid #C9D3C4;
+  border-radius:6px;z-index:10;display:none;max-height:280px;overflow:auto;box-shadow:0 3px 10px rgba(31,51,38,.10)}
+.sug button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+  padding:8px 12px;font:14px var(--texto);color:var(--tinta);cursor:pointer}
+.sug button:hover{background:var(--salvia)}
+.sug .num{font:700 15px var(--numero);min-width:56px}
+.ficha-cuerpo{display:grid;grid-template-columns:1.3fr 1fr;gap:28px;align-items:start}
+.nota{font-size:13.5px;color:var(--tinta2);margin-top:12px;line-height:1.6}
+.nota b{color:var(--tinta)}
+
+/* cómo se calculó */
+.metodo{background:var(--salvia);padding:44px 0 46px}
+.tres{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:18px}
+.tres h3{margin:0 0 6px;font:700 19px/1.2 var(--numero)}
+.tres p{margin:0 0 12px;color:var(--tinta2);font-size:14px}
+.tres table{background:var(--hoja);border:1px solid var(--linea);border-radius:6px;font-size:13px}
+.tres td,.tres th{padding:7px 10px}
+.limites{list-style:none;padding:0;margin:12px 0 0;font-size:13.5px}
+.limites li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--linea)}
+.limites b{font-variant-numeric:tabular-nums}
+.ok{color:var(--l3);font-weight:600;font-size:12.5px;margin-left:6px}
+
+footer{padding:26px 0 40px;color:var(--tenue);font-size:13px;line-height:1.7}
+footer p{margin:0 0 8px;max-width:95ch}
+footer b{color:var(--tinta2)}
+
+@media(max-width:920px){
+  .ancho{padding:0 20px}
+  .hallazgo{font-size:36px}
+  .registro,.ficha-cuerpo,.tres{grid-template-columns:1fr}
+  .registro > div,.registro > div + div{padding:0;border-left:0}
+  .registro > div + div{margin-top:40px}
+  .ficha-cab{grid-template-columns:auto 1fr}
+  .buscar{grid-column:1/-1;width:100%}
+}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-ojo" viewBox="0 0 16 16"><path d="M8 3.5C4.6 3.5 2 6.4 1 8c1 1.6 3.6 4.5 7 4.5S14 9.6 15 8c-1-1.6-3.6-4.5-7-4.5zm0 7.3A2.8 2.8 0 1 1 8 5.2a2.8 2.8 0 0 1 0 5.6zm0-1.6a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4z" fill="currentColor"/></symbol>
+  <symbol id="i-baja" viewBox="0 0 16 16"><path d="M8 14.5 2.2 8.6l1.1-1.1 3.9 3.9V1.5h1.6v9.9l3.9-3.9 1.1 1.1z" fill="currentColor"/></symbol>
+  <symbol id="i-desc" viewBox="0 0 16 16"><path d="M7.2 1.6h1.6v6.3l2.3-2.3 1.1 1.1L8 11l-4.2-4.3 1.1-1.1 2.3 2.3zM2.6 12.2h10.8v2.2H2.6z" fill="currentColor"/></symbol>
+</defs></svg>
+
+<header class="ancho top">
+  <h1>Producción lechera por vaca</h1>
+  <p>Demo de AIOROS, generada el {{FECHA}}</p>
+</header>
+
+<section class="portada">
+  <div class="ancho">
+    <h2 class="hallazgo">{{TITULAR}}</h2>
+    <p class="bajada">Curva mediana de {{CURVAS}} lactancias de {{VACAS}} vacas Holstein. El registro original no trae
+      datos diarios, así que cada curva se reconstruyó a partir del pico, el día del pico y el total de la lactancia.</p>
+    <div class="grafica" id="g-principal"></div>
+    <div class="tabla" id="t-principal"></div>
+    <div class="pie">
+      <div class="leyenda" id="ley-principal"></div>
+      <button class="enlace" id="alternar">Ver los valores en una tabla</button>
+    </div>
+  </div>
+</section>
+
+<section class="ancho registro">
+  <div>
+    <h2>{{N_VIGILAR}} vacas a vigilar en su próxima lactancia</h2>
+    <p class="intro">Se prevé que su próxima lactancia quede en el 20% más bajo de su grupo. Conviene revisar su
+      alimentación y su salud antes del parto.</p>
+    <button class="boton" data-exportar="vigilancia"><svg aria-hidden="true"><use href="#i-desc"/></svg>Descargar lista en Excel</button>
+    <ul class="filas" id="l-vigilancia" aria-label="Vacas a vigilar"></ul>
+  </div>
+  <div>
+    <h2>{{N_ANOM_VACAS}} vacas produjeron menos de lo esperado</h2>
+    <p class="intro">Isolation Forest marcó estas lactancias como inusuales y todas quedaron por debajo de lo esperado:
+      frente a su propio historial, a lo que predijo el modelo o al resto del hato.</p>
+    <button class="boton" data-exportar="anomalias"><svg aria-hidden="true"><use href="#i-desc"/></svg>Descargar lista en Excel</button>
+    <ul class="filas" id="l-anomalias" aria-label="Vacas con baja producción"></ul>
+  </div>
+</section>
+
+<section class="ancho ficha" id="ficha">
+  <div class="ficha-cab">
+    <span class="arete grande" id="v-arete"></span>
+    <div><h2 id="v-nombre"></h2><p id="v-sub"></p><div id="v-estado"></div></div>
+    <div class="buscar">
+      <label for="q">Buscar otra vaca</label>
+      <input id="q" placeholder="Número de arete o nombre" autocomplete="off">
+      <div class="sug" id="sug" role="listbox"></div>
+    </div>
+  </div>
+  <div class="ficha-cuerpo">
+    <div><div class="grafica" id="g-vaca"></div><div class="pie"><div class="leyenda" id="ley-vaca"></div></div></div>
+    <div><div class="desliza"><table id="t-vaca"></table></div><div class="nota" id="v-nota"></div></div>
+  </div>
+</section>
+
+<section class="metodo">
+  <div class="ancho">
+    <h2>Cómo se calculó</h2>
+    <div class="tres">
+      <div>
+        <h3>Los datos</h3>
+        <p>De las {{CRUDOS}} filas del archivo quedaron {{LACTS}} lactancias válidas de {{VACAS}} vacas, hijas de
+          {{SEMENTALES}} sementales.</p>
+        <div class="desliza"><table id="t-limpieza"></table></div>
+      </div>
+      <div>
+        <h3>La predicción</h3>
+        <p>El modelo estima la producción de la siguiente lactancia a partir de la anterior. Se validó separando
+          vacas: la misma vaca nunca estuvo a la vez en entrenamiento y en prueba.</p>
+        <div class="desliza"><table id="t-modelo"></table></div>
+        <p class="nota" id="n-modelo"></p>
+      </div>
+      <div>
+        <h3>La validación</h3>
+        <p>Los rangos se compararon con {{N_CHECA}} lactancias de República Checa, de clima templado.</p>
+        <div class="desliza"><table id="t-valid"></table></div>
+        <p class="nota">Rangos plausibles para revisar los datos de la finca cuando se carguen:</p>
+        <ul class="limites" id="limites"></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="ancho">
+  <p><b>Datos.</b> Prafangasti Sarah y colaboradores, «Dataset for Performance of Superior Dairy Cattle Sires»,
+    Mendeley Data, versión 2 (2024), licencia CC BY 4.0: vacas Holstein de Indonesia nacidas entre 2017 y 2021.
+    Validación con «Dataset cow performance», Mendeley Data, República Checa, 2018.</p>
+  <p><b>Límites de esta demo.</b> El dataset trae un registro por lactancia, sin datos diarios, fechas ni clima: las
+    curvas diarias son una reconstrucción, no una medición. La lista de vigilancia anticipa alrededor del {{DET_L12}}%
+    de las vacas que terminan entre las más bajas, cuando al azar sería el 20%; sirve para priorizar, no para
+    diagnosticar. Para alertas a tiempo hacen falta registros diarios o por ordeño, con temperatura y humedad.</p>
+  <p><b>Origen de las cifras.</b> Todas las cifras y los motivos de cada alerta los calcula el código a partir de los
+    datos; ninguno está escrito a mano.</p>
+</footer>
+
+<script>
+var D = {{DATOS}};
+var COLOR = ['var(--l1)','var(--l2)','var(--l3)','var(--l4)'];
+var ORD = ['1.ª','2.ª','3.ª','4.ª'];
+function fmt(n,d){ return n==null?'—':Number(n).toLocaleString('en-US',{minimumFractionDigits:d||0,maximumFractionDigits:d||0}); }
+function wood(w,dias){ var o=[]; for(var t=1;t<=dias;t++) o.push(w[0]*Math.pow(t,w[1])*Math.exp(-w[2]*t)); return o; }
+function escalaY(v){ var p=v<=12?2:(v<=30?5:10); return {max:Math.ceil(v*1.06/p)*p, paso:p}; }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+function grafica(cont, o){
+  cont._o=o; var W=Math.max(320,Math.round(cont.clientWidth||1100)), H=o.alto, PL=50, PR=24, PT=22, PB=40, N=o.dias, vals=[];
+  o.series.forEach(function(s){ s.v.forEach(function(x){ if(x!=null) vals.push(x); }); });
+  var e=escalaY(Math.max.apply(null,vals)), ymax=e.max;
+  var X=function(d){ return PL+(d-1)/(N-1)*(W-PL-PR); }, Y=function(v){ return H-PB-(v/ymax)*(H-PT-PB); };
+  var h=['<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.aria)+'">'];
+  for(var v=0; v<=ymax+1e-9; v+=e.paso){ var y=Y(v);
+    h.push('<line class="'+(v?'rj':'base')+'" x1="'+PL+'" x2="'+(W-PR)+'" y1="'+y+'" y2="'+y+'"/>');
+    h.push('<text class="ej" x="'+(PL-10)+'" y="'+(y+4)+'" text-anchor="end">'+v+'</text>'); }
+  var paso=N>330?60:50;
+  for(var d=0; d<=N; d+=paso) h.push('<text class="ej" x="'+X(Math.max(1,d))+'" y="'+(H-PB+18)+'" text-anchor="middle">'+d+'</text>');
+  h.push('<text class="ej" x="'+(W-PR)+'" y="'+(H-4)+'" text-anchor="end">días desde el parto</text>');
+  h.push('<text class="ej" x="'+PL+'" y="'+(PT-8)+'">kg de leche por día</text>');
+  o.series.forEach(function(s){ var p='', pluma=false;
+    s.v.forEach(function(x,i){ if(x==null){ pluma=false; return; } p+=(pluma?'L':'M')+X(i+1).toFixed(1)+' '+Y(x).toFixed(1); pluma=true; });
+    h.push('<path class="'+(o.animar?'dibujar':'')+'" d="'+p+'" fill="none" stroke="'+s.c+'" stroke-width="'+(s.ancho||2)+'" stroke-linejoin="round" stroke-linecap="round"'+(s.punteada?' stroke-dasharray="6 4"':'')+'/>'); });
+  // etiquetas directas: curvas casi iguales comparten etiqueta; las cercanas se empujan hacia arriba
+  var et=[]; o.series.forEach(function(s){ if(!s.et || W<600) return; var m=-1,im=0; s.v.forEach(function(x,i){ if(x!=null&&x>m){m=x;im=i;} }); et.push({d:im+1,v:m,t:s.et}); });
+  et.sort(function(a,b){ return b.v-a.v; });
+  var g=[]; et.forEach(function(x){ var k=g.filter(function(q){ return Math.abs(q.d-x.d)<=25 && Math.abs(q.v-x.v)<=3; })[0];
+    if(k) k.m.push(x.t); else g.push({d:x.d,v:x.v,m:[x.t]}); });
+  g.forEach(function(q){ q.m.sort(); q.t=q.m.length===1?q.m[0]+' lactancia':(q.m.length===2?q.m[0]+' y '+q.m[1]+' lactancia':'De la '+q.m[0]+' a la '+q.m[q.m.length-1]+' lactancia');
+    q.x=X(q.d); q.y=Y(q.v)-12; });
+  g.sort(function(a,b){ return a.y-b.y; });
+  for(var i=g.length-2;i>=0;i--){ if(Math.abs(g[i].x-g[i+1].x)<160 && g[i+1].y-g[i].y<17) g[i].y=g[i+1].y-17; }
+  g.forEach(function(q){ h.push('<text class="et" x="'+(q.x+6)+'" y="'+q.y+'">'+q.t+'</text>'); });
+  h.push('<g class="cruz"><line y1="'+PT+'" y2="'+(H-PB)+'"/>'+o.series.map(function(s){ return '<circle r="4.5" fill="'+s.c+'" stroke="#fff" stroke-width="2"/>'; }).join('')+'</g>');
+  h.push('<rect x="'+PL+'" y="'+PT+'" width="'+(W-PL-PR)+'" height="'+(H-PT-PB)+'" fill="transparent"/></svg><div class="globo"></div>');
+  cont.innerHTML=h.join('');
+  var svg=cont.querySelector('svg'), cr=cont.querySelector('.cruz'), ln=cr.querySelector('line'), pts=cr.querySelectorAll('circle'), gl=cont.querySelector('.globo');
+  if(o.animar) cont.querySelectorAll('path.dibujar').forEach(function(p,i){ var L=p.getTotalLength();
+    p.style.strokeDasharray=L+(p.getAttribute('stroke-dasharray')?'':''); p.style.setProperty('--largo',L); p.style.animationDelay=(i*140)+'ms';
+    p.addEventListener('animationend',function(){ p.style.strokeDasharray=''; }); });
+  svg.addEventListener('mousemove',function(ev){
+    var r=svg.getBoundingClientRect(), k=W/r.width, mx=(ev.clientX-r.left)*k;
+    var d=Math.max(1,Math.min(N,Math.round((mx-PL)/(W-PL-PR)*(N-1))+1)), x=X(d);
+    ln.setAttribute('x1',x); ln.setAttribute('x2',x);
+    var f=['<div class="g1">Día '+d+' después del parto</div>'];
+    o.series.forEach(function(s,i){ var v=s.v[d-1]; if(v==null){ pts[i].style.display='none'; return; }
+      pts[i].style.display=''; pts[i].setAttribute('cx',x); pts[i].setAttribute('cy',Y(v));
+      f.push('<div class="gf"><i style="background:'+s.c+'"></i>'+s.n+': <b>'+fmt(v,1)+' kg</b></div>'); });
+    gl.innerHTML=f.join(''); cr.style.opacity=1; gl.style.opacity=1;
+    var px=x/k, gw=gl.offsetWidth; gl.style.left=Math.max(6,Math.min(px+16,r.width-gw-6))+'px'; gl.style.top='14px';
+  });
+  svg.addEventListener('mouseleave',function(){ cr.style.opacity=0; gl.style.opacity=0; });
+}
+function leyenda(el,series){ el.innerHTML=series.map(function(s){ return '<span><i class="'+(s.punteada?'punteada':'')+'" style="background:'+s.c+'"></i>'+s.n+'</span>'; }).join(''); }
+
+var _rt; window.addEventListener('resize',function(){ clearTimeout(_rt); _rt=setTimeout(function(){
+  ['g-principal','g-vaca'].forEach(function(id){ var c=document.getElementById(id); if(c._o && c.offsetParent){ var o=Object.assign({},c._o,{animar:false}); grafica(c,o); } }); },150); });
+
+// curva principal
+var principal=[1,2,3,4].map(function(n){ return {n:ORD[n-1]+' lactancia', c:COLOR[n-1], v:D.curvas_mediana[n], et:ORD[n-1], ancho:2.5}; });
+leyenda(document.getElementById('ley-principal'), principal.map(function(s,i){ return {n:s.n+' ('+fmt(D.n_curvas[i+1])+')', c:s.c}; }));
+grafica(document.getElementById('g-principal'), {series:principal, dias:305, alto:430, animar:true, aria:'Curva de producción esperada según el número de lactancia'});
+(function(){
+  var dias=[1,15,30,45,60,90,120,150,180,210,240,270,305];
+  var h='<table><thead><tr><th>Día desde el parto</th>'+[1,2,3,4].map(function(n){ return '<th class="n">'+ORD[n-1]+' lactancia, kg</th>'; }).join('')+'</tr></thead><tbody>';
+  dias.forEach(function(d){ h+='<tr><td>'+d+'</td>'+[1,2,3,4].map(function(n){ return '<td class="n">'+fmt(D.curvas_mediana[n][d-1],1)+'</td>'; }).join('')+'</tr>'; });
+  document.getElementById('t-principal').innerHTML=h+'</tbody></table>';
+  var b=document.getElementById('alternar'), gp=document.getElementById('g-principal'), tp=document.getElementById('t-principal');
+  b.addEventListener('click',function(){ var tabla=!tp.classList.contains('ver'); tp.classList.toggle('ver',tabla);
+    gp.style.display=tabla?'none':''; b.textContent=tabla?'Ver la gráfica':'Ver los valores en una tabla'; });
+})();
+
+// registro de vacas
+function fila(o,tipo){
+  var lact = tipo==='v' ? ORD[o.lact]+' lactancia prevista' : 'en su '+ORD[o.lact-1]+' lactancia';
+  return '<li><button class="fila" data-vaca="'+o.vaca+'"><span class="arete">'+o.vaca+'</span><span><span class="cab"><b>'+
+    esc(o.nombre||'Sin nombre')+'</b><span class="lact">'+lact+'</span></span><ul>'+
+    o.motivos.slice(0,3).map(function(m){ return '<li>'+esc(m)+'</li>'; }).join('')+'</ul></span></button></li>';
+}
+document.getElementById('l-vigilancia').innerHTML=D.vigilancia.map(function(o){ return fila(o,'v'); }).join('');
+document.getElementById('l-anomalias').innerHTML=D.anomalias.map(function(o){ return fila(o,'a'); }).join('');
+document.querySelectorAll('.fila').forEach(function(b){ b.addEventListener('click',function(){
+  mostrar(b.dataset.vaca); document.getElementById('ficha').scrollIntoView({behavior:'smooth',block:'start'}); }); });
+
+// ficha de la vaca
+var VIG={}, ANO={}; D.vigilancia.forEach(function(o){ VIG[o.vaca]=o; }); D.anomalias.forEach(function(o){ (ANO[o.vaca]=ANO[o.vaca]||[]).push(o); });
+var MED={}; [1,2,3,4].forEach(function(n){ var xs=[]; for(var id in D.vacas) D.vacas[id].lacts.forEach(function(l){ if(l.n===n) xs.push(l.corr); });
+  xs.sort(function(a,b){ return a-b; }); MED[n]=xs[Math.floor(xs.length/2)]; });
+function mostrar(id){
+  var v=D.vacas[id]; if(!v) return;
+  var dmax=Math.min(460,Math.max(305,Math.max.apply(null,v.lacts.map(function(l){ return l.dur; }))));
+  var s=v.lacts.filter(function(l){ return l.w; }).map(function(l){ var y=wood(l.w,l.dur); while(y.length<dmax) y.push(null);
+    return {n:ORD[l.n-1]+' lactancia', c:COLOR[l.n-1], v:y}; });
+  var u=v.lacts[v.lacts.length-1].n, ref=D.curvas_mediana[u].slice(); while(ref.length<dmax) ref.push(null);
+  s.push({n:'Mediana del hato en '+ORD[u-1]+' lactancia', c:'var(--ref)', v:ref, punteada:true});
+  leyenda(document.getElementById('ley-vaca'), s);
+  grafica(document.getElementById('g-vaca'), {series:s, dias:dmax, alto:360, aria:'Curvas de lactancia de la vaca '+id});
+  document.getElementById('v-arete').textContent=id;
+  document.getElementById('v-nombre').textContent=v.nombre||'Sin nombre';
+  var n=v.lacts.length;
+  document.getElementById('v-sub').textContent=(v.semental==='sin registro'?'Semental sin registro':'Hija del semental '+v.semental)+'. '+n+' lactancia'+(n>1?'s':'')+' registrada'+(n>1?'s':'')+'.';
+  var e=[];
+  if(ANO[id]) ANO[id].forEach(function(a){ e.push('<span class="estado e-ano"><svg aria-hidden="true"><use href="#i-baja"/></svg>Baja producción en su '+ORD[a.lact-1]+' lactancia</span>'); });
+  if(VIG[id]) e.push('<span class="estado e-vig"><svg aria-hidden="true"><use href="#i-ojo"/></svg>A vigilar en su '+ORD[VIG[id].lact]+' lactancia</span>');
+  if(!e.length) e.push('<span class="estado e-ok">Sin alertas</span>');
+  document.getElementById('v-estado').innerHTML=e.join('');
+  var t='<thead><tr><th>Lactancia</th><th class="n">Producción, kg</th><th class="n">Esperado, kg</th><th class="n">Mediana del hato, kg</th><th class="n">Pico, kg/día</th><th class="n">Días</th></tr></thead><tbody>';
+  v.lacts.forEach(function(l){ t+='<tr><td>'+ORD[l.n-1]+(l.anom?' <svg style="width:13px;height:13px;color:var(--ano-i);vertical-align:-2px" role="img" aria-label="baja producción"><use href="#i-baja"/></svg>':'')+
+    '</td><td class="n">'+fmt(l.corr)+'</td><td class="n">'+(l.esp?fmt(l.esp):'—')+'</td><td class="n">'+fmt(MED[l.n])+'</td><td class="n">'+fmt(l.pico,1)+'</td><td class="n">'+l.dur+'</td></tr>'; });
+  document.getElementById('t-vaca').innerHTML=t+'</tbody>';
+  var nt=[];
+  if(ANO[id]) ANO[id].forEach(function(a){ nt.push('<b>'+ORD[a.lact-1]+' lactancia:</b> '+esc(a.motivos.join('; '))+'.'); });
+  if(VIG[id]) nt.push('<b>Próxima lactancia:</b> '+esc(VIG[id].motivos.join('; '))+'.');
+  nt.push('La producción está corregida a 305 días. El valor esperado es el que predijo el modelo con su lactancia anterior; el pico es la producción máxima en un día.');
+  document.getElementById('v-nota').innerHTML=nt.join('<br>');
+}
+var IDX=Object.keys(D.vacas).map(function(id){ return {id:id, nom:D.vacas[id].nombre||''}; });
+var q=document.getElementById('q'), sug=document.getElementById('sug');
+q.addEventListener('input',function(){
+  var s=q.value.trim().toLowerCase(); if(!s){ sug.style.display='none'; return; }
+  var r=IDX.filter(function(o){ return o.id.indexOf(s)===0 || o.nom.toLowerCase().indexOf(s)===0; }).slice(0,8);
+  sug.innerHTML=r.length?r.map(function(o){ return '<button role="option" data-id="'+o.id+'"><span class="num">'+o.id+'</span>'+esc(o.nom||'Sin nombre')+'</button>'; }).join('')
+                        :'<button disabled>Ninguna vaca coincide con «'+esc(q.value)+'»</button>';
+  sug.style.display='block';
+  sug.querySelectorAll('button[data-id]').forEach(function(b){ b.addEventListener('click',function(){ mostrar(b.dataset.id); q.value=''; sug.style.display='none'; }); });
+});
+q.addEventListener('keydown',function(ev){ if(ev.key==='Enter'){ var b=sug.querySelector('button[data-id]'); if(b) b.click(); } if(ev.key==='Escape') sug.style.display='none'; });
+document.addEventListener('click',function(ev){ if(!ev.target.closest('.buscar')) sug.style.display='none'; });
+mostrar((D.anomalias[0]||D.vigilancia[0]).vaca);
+
+// cómo se calculó
+document.getElementById('t-limpieza').innerHTML='<thead><tr><th>Regla de limpieza</th><th class="n">Filas</th></tr></thead><tbody>'+
+  D.resumen.removidos.map(function(r){ return '<tr><td>'+esc(r.motivo)+'</td><td class="n">'+r.n+'</td></tr>'; }).join('')+'</tbody>';
+(function(){
+  var R=D.modelo.resultados, el=D.modelo.elegido;
+  var h='<thead><tr><th>Modelo</th><th class="n">Error medio</th><th class="n">Anticipa</th></tr></thead><tbody>';
+  Object.keys(R).forEach(function(k){ h+='<tr><td>'+k+(k===el?'<span class="ok">elegido</span>':'')+'</td><td class="n">'+fmt(R[k].mae)+' kg</td><td class="n">'+fmt(R[k].deteccion_l1_l2*100)+'%</td></tr>'; });
+  h+='<tr><td style="color:var(--tenue)">Usar el promedio</td><td class="n" style="color:var(--tenue)">'+fmt(D.modelo.mae_promedio)+' kg</td><td class="n" style="color:var(--tenue)">20%</td></tr>';
+  document.getElementById('t-modelo').innerHTML=h+'</tbody>';
+  document.getElementById('n-modelo').textContent='"Anticipa" es la parte de las vacas que terminaron en el 20% más bajo de su 2.ª lactancia y que el modelo ya había señalado desde la 1.ª. Se entrenó con '+fmt(D.resumen.pares)+' pares de lactancias seguidas y se eligió el de menor error. Con pocos datos, XGBoost necesita regularización para no aprenderse los casos de memoria.';
+  var v='<thead><tr><th>Variable</th><th class="n">Indonesia</th><th class="n">Rep. Checa</th></tr></thead><tbody>';
+  D.validacion.tabla.forEach(function(t){ v+='<tr><td>'+t.variable+'</td><td class="n">'+fmt(t.indonesia.mediana)+'</td><td class="n">'+fmt(t.checa.mediana)+'</td></tr>'; });
+  document.getElementById('t-valid').innerHTML=v+'</tbody>';
+  var L=D.validacion.limites;
+  document.getElementById('limites').innerHTML=Object.keys(L).map(function(k){ var d=k.indexOf('%')>0?1:0;
+    return '<li><span>'+k+'</span><b>'+fmt(L[k][0],d)+' a '+fmt(L[k][1],d)+'</b></li>'; }).join('');
+})();
+
+// descargas en Excel (separador ; y coma decimal)
+function descargar(filas,nombre){
+  var csv='﻿'+filas.map(function(r){ return r.map(function(c){ return '"'+String(c==null?'':c).replace(/"/g,'""')+'"'; }).join(';'); }).join('\r\n');
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=nombre; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500);
+}
+document.querySelectorAll('[data-exportar]').forEach(function(b){ b.addEventListener('click',function(){
+  if(b.dataset.exportar==='vigilancia') descargar([['Arete','Nombre','Semental','Última lactancia','Producción prevista siguiente (kg)','Percentil en su grupo','Motivos']]
+    .concat(D.vigilancia.map(function(o){ return [o.vaca,o.nombre,o.semental,o.lact,o.pred,o.percentil,o.motivos.join(' | ')]; })),'vacas_a_vigilar_{{SELLO}}.csv');
+  else descargar([['Arete','Nombre','Semental','Lactancia','Producción (kg)','Esperado (kg)','Puntaje de anomalía','Motivos']]
+    .concat(D.anomalias.map(function(o){ return [o.vaca,o.nombre,o.semental,o.lact,o.corr,o.esp,String(o.puntaje).replace('.',','),o.motivos.join(' | ')]; })),'vacas_baja_produccion_{{SELLO}}.csv');
+}); });
+</script>
+</body></html>

@@ -1,0 +1,112 @@
+{
+  "resumen": {
+    "registros_crudos": 2203,
+    "lactancias_validas": 2178,
+    "vacas": 1051,
+    "sementales": 96,
+    "curvas_reconstruidas": 2176,
+    "removidos": [
+      {
+        "motivo": "Filas de resumen al pie de cada hoja (mínimo, máximo, promedio, desviación, CV)",
+        "n": 20
+      },
+      {
+        "motivo": "Filas vacías (sin vaca o sin producción)",
+        "n": 4
+      },
+      {
+        "motivo": "Registro duplicado de la misma vaca y lactancia",
+        "n": 0
+      },
+      {
+        "motivo": "Lactancia de menos de 150 días (incompleta)",
+        "n": 0
+      },
+      {
+        "motivo": "Producción corregida menor a 2,000 kg",
+        "n": 0
+      },
+      {
+        "motivo": "Pico fuera de rango (0 o más de 80 kg/día)",
+        "n": 1
+      },
+      {
+        "motivo": "Día del pico imposible",
+        "n": 0
+      }
+    ],
+    "pares": 1024,
+    "lactancias_checas": 723
+  },
+  "modelo": {
+    "resultados": {
+      "Regresión lineal": {
+        "mae": 819.6511338526398,
+        "r2": 0.2230286677252511,
+        "deteccion": 0.45213255701501637,
+        "mae_l1_l2": 853.8639019707928,
+        "deteccion_l1_l2": 0.4050632911392405
+      },
+      "XGBoost regularizado": {
+        "mae": 838.0275990364181,
+        "r2": 0.1966114684942072,
+        "deteccion": 0.4129942791787276,
+        "mae_l1_l2": 862.1113593298179,
+        "deteccion_l1_l2": 0.379746835443038
+      }
+    },
+    "elegido": "Regresión lineal",
+    "mae_promedio": 930.0384814532362,
+    "cuantil_bajo": 0.2,
+    "contaminacion": 0.06
+  },
+  "validacion": {
+    "tabla": [
+      {
+        "variable": "Producción por lactancia (kg)",
+        "indonesia": {
+          "p10": 6340.950485543016,
+          "mediana": 7797.914796403043,
+          "p90": 9290.405604102923
+        },
+        "checa": {
+          "p10": 6137.8,
+          "mediana": 7445.0,
+          "p90": 9364.0
+        }
+      },
+      {
+        "variable": "Intervalo entre partos (días)",
+        "indonesia": {
+          "p10": 337.0,
+          "mediana": 370.0,
+          "p90": 458.0
+        },
+        "checa": {
+          "p10": 363.8,
+          "mediana": 409.0,
+          "p90": 520.2
+        },
+        "nota": "En Indonesia se aproxima como duración de la lactancia + días secos."
+      }
+    ],
+    "limites": {
+      "Grasa (%)": [
+        3.1644,
+        4.79
+      ],
+      "Proteína (%)": [
+        3.06,
+        4.095599999999999
+      ],
+      "Lactosa (%)": [
+        4.5066,
+        5.2478
+      ],
+      "Intervalo entre partos (días)": [
+        340.16,
+        700.6799999999998
+      ]
+    }
+  }
+}
