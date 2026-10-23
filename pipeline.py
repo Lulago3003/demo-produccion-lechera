@@ -271,7 +271,8 @@ def main():
                            "dur": int(r["duracion"]), "pico": round(r["pico"], 1), "dpico": int(r["dias_pico"]),
                            "secos": None if pd.isna(r["dias_secos"]) else int(r["dias_secos"]),
                            "esp": None if pd.isna(r["esperado"]) else round(r["esperado"]),
-                           "w": None if w is None else [round(w[0], 5), round(w[1], 5), round(w[2], 6)],
+                           # cifras significativas, no decimales fijos: 'a' puede ser del orden de 1e-5
+                           "w": None if w is None else [float(f"{x:.8g}") for x in w],
                            "anom": bool(r["anomala"])})
 
     salida = {
