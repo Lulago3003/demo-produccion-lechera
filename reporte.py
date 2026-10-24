@@ -70,7 +70,8 @@ for t in [
     f"{r['lactancias_validas']:,} lactancias. Muestra que desde la 2.ª lactancia el pico sube de {picos[1]:.0f} a unos "
     f"{p234:.0f} kg por día.",
     "<b>a) Predicción.</b> Se estima la producción de la siguiente lactancia a partir de la anterior, comparando "
-    "XGBoost regularizado contra regresión lineal, con validación cruzada que separa vacas.",
+    "XGBoost regularizado contra regresión lineal, con validación cruzada que separa vacas. En la ficha de cada vaca "
+    "se dibuja además la curva que esperaba el modelo y su próxima lactancia prevista, en kilos reales por día.",
     "<b>b) Anomalías.</b> Isolation Forest sobre la diferencia entre lo producido y lo esperado, comparando a cada "
     "vaca con su propio historial, con lo que predijo el modelo y con el resto del hato.",
     f"<b>Validación.</b> Los rangos de producción e intervalo entre partos se compararon con "

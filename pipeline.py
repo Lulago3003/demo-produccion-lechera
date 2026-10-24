@@ -222,10 +222,12 @@ def main():
         w = ajustar_wood(r["dias_pico"], r["pico"], r["total"], r["duracion"])
         if w:
             params[i] = w
-            y = curva(*w, DIAS_CURVA)
-            y[int(r["duracion"]):] = np.nan
-            curvas[r["lact"]].append(y)
+            # todas hasta 305 días (estándar lechero): así la mediana usa siempre las mismas
+            # vacas y no se quiebra al final, cuando muchas lactancias ya terminaron
+            curvas[r["lact"]].append(curva(*w, DIAS_CURVA))
     mediana_curva = {n: np.nanmedian(np.vstack(v), axis=0) for n, v in curvas.items()}
+    # kilos reales en los primeros 305 días de cada lactancia (para comparar real contra esperado)
+    s305 = {i: float(curva(*w, min(int(d.loc[i, "duracion"]), DIAS_CURVA)).sum()) for i, w in params.items()}
     print(f"[2] curva reconstruida en {len(params)} de {len(d)} lactancias")
 
     d, pares = pares_consecutivos(d)
@@ -250,6 +252,17 @@ def main():
     anom = d[d["anomala"]].sort_values("puntaje", ascending=False)
     print(f"[4] anomalías de baja producción: {len(anom)} lactancias en {anom['vaca'].nunique()} vacas")
 
+    # El modelo predice producción CORREGIDA a 305 días; las curvas están en kilos REALES.
+    # La corrección sube a las primerizas y baja a las adultas, así que se convierte con el
+    # factor de esa misma lactancia (pasadas) o la mediana de su grupo (próxima lactancia).
+    d["s305"] = pd.Series(s305)
+    k305 = (d["s305"] / d["corregida"]).groupby(d["lact"]).median()
+    prox = {str(int(r["vaca"])): {"n": int(r["lact"]) + 1, "pred": round(r["pred_siguiente"]),
+                                   "p305": round(r["pred_siguiente"] * k305[int(r["lact"]) + 1])}
+            for _, r in ultima.iterrows()}
+    print(f"[3] curva prevista para {len(prox)} vacas | factor real/corregida por lactancia: "
+          + ", ".join(f"{int(n)}.ª {k:.2f}" for n, k in k305.items()))
+
     tabla, limites, n_checa = validar(d)
     print(f"[5] validación contra {n_checa} lactancias de República Checa")
 
@@ -265,12 +278,15 @@ def main():
 
     vacas = {}
     for i, r in d.iterrows():
-        v = vacas.setdefault(str(r["vaca"]), {"nombre": r["nombre"], "semental": r["semental"], "lacts": []})
+        v = vacas.setdefault(str(r["vaca"]), {"nombre": r["nombre"], "semental": r["semental"], "lacts": [],
+                                              "prox": prox.get(str(r["vaca"]))})
         w = params.get(i)
         v["lacts"].append({"n": int(r["lact"]), "total": round(r["total"]), "corr": round(r["corregida"]),
                            "dur": int(r["duracion"]), "pico": round(r["pico"], 1), "dpico": int(r["dias_pico"]),
                            "secos": None if pd.isna(r["dias_secos"]) else int(r["dias_secos"]),
                            "esp": None if pd.isna(r["esperado"]) else round(r["esperado"]),
+                           "e305": None if pd.isna(r["esperado"]) or pd.isna(r["s305"])
+                                   else round(r["esperado"] * r["s305"] / r["corregida"]),
                            # cifras significativas, no decimales fijos: 'a' puede ser del orden de 1e-5
                            "w": None if w is None else [float(f"{x:.8g}") for x in w],
                            "anom": bool(r["anomala"])})
@@ -284,6 +300,7 @@ def main():
         "curvas_mediana": {str(n): [None if np.isnan(x) else round(float(x), 2) for x in c]
                            for n, c in mediana_curva.items()},
         "n_curvas": {str(n): len(v) for n, v in curvas.items()},
+        "factor_real_corregida": {str(int(n)): round(float(k), 4) for n, k in k305.items()},
         "modelo": {"resultados": resultados, "elegido": elegido, "mae_promedio": base,
                    "cuantil_bajo": CUANTIL_BAJO, "contaminacion": CONTAMINACION},
         "vigilancia": [{"vaca": str(r["vaca"]), "nombre": r["nombre"], "semental": r["semental"],

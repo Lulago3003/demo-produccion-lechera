@@ -16,9 +16,14 @@ con datos públicos de 1,051 vacas Holstein.
 3. **Predice la siguiente lactancia** a partir de la anterior. Compara XGBoost
    regularizado contra regresión lineal con validación cruzada agrupada por vaca y se
    queda con el de menor error.
-4. **Detecta baja producción** con Isolation Forest sobre la diferencia entre lo
+4. **Dibuja la curva esperada de cada vaca.** El modelo predice el total de la lactancia
+   corregido a 305 días; se pasa a kilos reales con el factor de corrección de esa lactancia
+   (0.90 en la 1.ª, 1.04 en la 2.ª, 1.10 en la 3.ª y 1.15 en la 4.ª, en mediana) y se reparte
+   día a día con la forma de la curva del hato. Así se ve la real contra la esperada, y la
+   próxima lactancia prevista de las vacas a vigilar.
+5. **Detecta baja producción** con Isolation Forest sobre la diferencia entre lo
    producido y lo esperado, frente al historial de la vaca y al resto del hato.
-5. **Valida rangos** contra 723 lactancias de República Checa.
+6. **Valida rangos** contra 723 lactancias de República Checa.
 
 ## Resultados
 

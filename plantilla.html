@@ -42,7 +42,6 @@ b,strong{font-weight:600}
 .leyenda{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--tinta2)}
 .leyenda span{display:flex;align-items:center;gap:7px}
 .leyenda i{width:18px;height:3px;border-radius:2px;display:inline-block}
-.leyenda i.punteada{background:repeating-linear-gradient(90deg,var(--ref) 0 5px,transparent 5px 8px)!important}
 .enlace{background:none;border:0;padding:4px 0;color:var(--l3);font:600 14px var(--texto);cursor:pointer;
   text-decoration:underline;text-underline-offset:3px}
 
@@ -75,6 +74,7 @@ th{text-align:left;font-weight:600;color:var(--tinta2);padding:9px 12px;border-b
 td{padding:8px 12px;border-bottom:1px solid var(--rejilla);font-variant-numeric:tabular-nums;white-space:nowrap}
 .n{text-align:right}
 .desliza{overflow-x:auto;min-width:0}
+tr.prevista td{color:var(--tinta2);font-style:italic}
 .ficha-cuerpo > div,.tres > div,.registro > div{min-width:0}
 
 /* arete: el número de cada vaca */
@@ -235,7 +235,8 @@ footer b{color:var(--tinta2)}
       <div>
         <h3>La predicción</h3>
         <p>El modelo estima la producción de la siguiente lactancia a partir de la anterior. Se validó separando
-          vacas: la misma vaca nunca estuvo a la vez en entrenamiento y en prueba.</p>
+          vacas: la misma vaca nunca estuvo a la vez en entrenamiento y en prueba. Para dibujar lo esperado, el total
+          predicho se pasa a kilos reales y se reparte día a día con la forma de la curva del hato.</p>
         <div class="desliza"><table id="t-modelo"></table></div>
         <p class="nota" id="n-modelo"></p>
       </div>
@@ -286,7 +287,7 @@ function grafica(cont, o){
   h.push('<text class="ej" x="'+PL+'" y="'+(PT-8)+'">kg de leche por día</text>');
   o.series.forEach(function(s){ var p='', pluma=false;
     s.v.forEach(function(x,i){ if(x==null){ pluma=false; return; } p+=(pluma?'L':'M')+X(i+1).toFixed(1)+' '+Y(x).toFixed(1); pluma=true; });
-    h.push('<path class="'+(o.animar?'dibujar':'')+'" d="'+p+'" fill="none" stroke="'+s.c+'" stroke-width="'+(s.ancho||2)+'" stroke-linejoin="round" stroke-linecap="round"'+(s.punteada?' stroke-dasharray="6 4"':'')+'/>'); });
+    h.push('<path class="'+(o.animar?'dibujar':'')+'" d="'+p+'" fill="none" stroke="'+s.c+'" stroke-width="'+(s.ancho||2)+'" stroke-linejoin="round" stroke-linecap="round"'+(s.dash?' stroke-dasharray="'+s.dash+'"':'')+'/>'); });
   // etiquetas directas: curvas casi iguales comparten etiqueta; las cercanas se empujan hacia arriba
   var et=[]; o.series.forEach(function(s){ if(!s.et || W<600) return; var m=-1,im=0; s.v.forEach(function(x,i){ if(x!=null&&x>m){m=x;im=i;} }); et.push({d:im+1,v:m,t:s.et}); });
   et.sort(function(a,b){ return b.v-a.v; });
@@ -317,7 +318,11 @@ function grafica(cont, o){
   });
   svg.addEventListener('mouseleave',function(){ cr.style.opacity=0; gl.style.opacity=0; });
 }
-function leyenda(el,series){ el.innerHTML=series.map(function(s){ return '<span><i class="'+(s.punteada?'punteada':'')+'" style="background:'+s.c+'"></i>'+s.n+'</span>'; }).join(''); }
+function leyenda(el,series){ el.innerHTML=series.map(function(s){
+    var t=s.trazo==='puntos'?[3,7]:(s.trazo?[6,9]:null);
+    var bg=t?'repeating-linear-gradient(90deg,'+s.c+' 0 '+t[0]+'px,transparent '+t[0]+'px '+t[1]+'px)':s.c;
+    return '<span><i style="background:'+bg+'"></i>'+s.n+'</span>'; }).join(''); }
+var TRAZO={discontinua:'7 5', puntos:'0.1 6'};
 
 var _rt; window.addEventListener('resize',function(){ clearTimeout(_rt); _rt=setTimeout(function(){
   ['g-principal','g-vaca'].forEach(function(id){ var c=document.getElementById(id); if(c._o && c.offsetParent){ var o=Object.assign({},c._o,{animar:false}); grafica(c,o); } }); },150); });
@@ -352,13 +357,26 @@ document.querySelectorAll('.fila').forEach(function(b){ b.addEventListener('clic
 var VIG={}, ANO={}; D.vigilancia.forEach(function(o){ VIG[o.vaca]=o; }); D.anomalias.forEach(function(o){ (ANO[o.vaca]=ANO[o.vaca]||[]).push(o); });
 var MED={}; [1,2,3,4].forEach(function(n){ var xs=[]; for(var id in D.vacas) D.vacas[id].lacts.forEach(function(l){ if(l.n===n) xs.push(l.corr); });
   xs.sort(function(a,b){ return a-b; }); MED[n]=xs[Math.floor(xs.length/2)]; });
+// curva del hato escalada para que sume 'kg' en los primeros 'dias' (los mismos que la curva real)
+function esperada(n,kg,dmax,dias){ dias=Math.min(dias||305,305);
+  var base=D.curvas_mediana[n].slice(0,dias), suma=base.reduce(function(t,x){ return t+(x||0); },0), k=kg/suma;
+  var y=base.map(function(x){ return x==null?null:x*k; }); while(y.length<dmax) y.push(null); return y; }
 function mostrar(id){
   var v=D.vacas[id]; if(!v) return;
   var dmax=Math.min(460,Math.max(305,Math.max.apply(null,v.lacts.map(function(l){ return l.dur; }))));
   var s=v.lacts.filter(function(l){ return l.w; }).map(function(l){ var y=wood(l.w,l.dur); while(y.length<dmax) y.push(null);
-    return {n:ORD[l.n-1]+' lactancia', c:COLOR[l.n-1], v:y}; });
-  var u=v.lacts[v.lacts.length-1].n, ref=D.curvas_mediana[u].slice(); while(ref.length<dmax) ref.push(null);
-  s.push({n:'Mediana del hato en '+ORD[u-1]+' lactancia', c:'var(--ref)', v:ref, punteada:true});
+    return {n:ORD[l.n-1]+' lactancia, real', c:COLOR[l.n-1], v:y}; });
+  // solo lo que cuenta la historia de esta vaca: anomalía -> real vs esperada;
+  // a vigilar -> próxima lactancia prevista; sin alertas -> esperada de su última lactancia
+  var ult=v.lacts[v.lacts.length-1], modelo=[], hay={esperada:false, prevista:false, mediana:false};
+  function serieEsperada(l){ hay.esperada=true; return {n:ORD[l.n-1]+' lactancia, esperada por el modelo', c:COLOR[l.n-1], v:esperada(l.n,l.e305,dmax,l.dur), trazo:'discontinua', dash:TRAZO.discontinua}; }
+  function seriePrevista(){ hay.prevista=true; return {n:ORD[v.prox.n-1]+' lactancia, prevista por el modelo', c:COLOR[v.prox.n-1], v:esperada(v.prox.n,v.prox.p305,dmax), trazo:'puntos', dash:TRAZO.puntos, ancho:2.8}; }
+  v.lacts.forEach(function(l){ if(l.e305 && l.anom) modelo.push(serieEsperada(l)); });
+  if(VIG[id] && v.prox) modelo.push(seriePrevista());
+  if(!modelo.length){ if(ult.e305) modelo.push(serieEsperada(ult)); else if(v.prox) modelo.push(seriePrevista()); }
+  s=s.concat(modelo);
+  if(!modelo.length){ hay.mediana=true; var ref=D.curvas_mediana[ult.n].slice(); while(ref.length<dmax) ref.push(null);
+    s.push({n:'Mediana del hato en '+ORD[ult.n-1]+' lactancia', c:'var(--ref)', v:ref, trazo:'discontinua', dash:TRAZO.discontinua}); }
   leyenda(document.getElementById('ley-vaca'), s);
   grafica(document.getElementById('g-vaca'), {series:s, dias:dmax, alto:360, aria:'Curvas de lactancia de la vaca '+id});
   document.getElementById('v-arete').textContent=id;
@@ -373,11 +391,18 @@ function mostrar(id){
   var t='<thead><tr><th>Lactancia</th><th class="n">Producción, kg</th><th class="n">Esperado, kg</th><th class="n">Mediana del hato, kg</th><th class="n">Pico, kg/día</th><th class="n">Días</th></tr></thead><tbody>';
   v.lacts.forEach(function(l){ t+='<tr><td>'+ORD[l.n-1]+(l.anom?' <svg style="width:13px;height:13px;color:var(--ano-i);vertical-align:-2px" role="img" aria-label="baja producción"><use href="#i-baja"/></svg>':'')+
     '</td><td class="n">'+fmt(l.corr)+'</td><td class="n">'+(l.esp?fmt(l.esp):'—')+'</td><td class="n">'+fmt(MED[l.n])+'</td><td class="n">'+fmt(l.pico,1)+'</td><td class="n">'+l.dur+'</td></tr>'; });
+  if(v.prox) t+='<tr class="prevista"><td>'+ORD[v.prox.n-1]+', prevista</td><td class="n">—</td><td class="n">'+fmt(v.prox.pred)+'</td><td class="n">'+fmt(MED[v.prox.n])+'</td><td class="n">—</td><td class="n">—</td></tr>';
   document.getElementById('t-vaca').innerHTML=t+'</tbody>';
   var nt=[];
   if(ANO[id]) ANO[id].forEach(function(a){ nt.push('<b>'+ORD[a.lact-1]+' lactancia:</b> '+esc(a.motivos.join('; '))+'.'); });
   if(VIG[id]) nt.push('<b>Próxima lactancia:</b> '+esc(VIG[id].motivos.join('; '))+'.');
-  nt.push('La producción está corregida a 305 días. El valor esperado es el que predijo el modelo con su lactancia anterior; el pico es la producción máxima en un día.');
+  var leer='<b>Cómo leer la gráfica:</b> la línea continua es su curva real, reconstruida con su pico y su total.';
+  if(hay.esperada) leer+=' La discontinua es lo que esperaba el modelo para esa lactancia.';
+  if(hay.prevista) leer+=' La de puntos es su próxima lactancia prevista.';
+  if(hay.esperada||hay.prevista) leer+=' El modelo predice el total, que se reparte día a día con la forma de la curva del hato.';
+  if(hay.mediana) leer+=' La discontinua gris es la mediana del hato.';
+  nt.push(leer);
+  nt.push('La tabla está en producción corregida a 305 días; la gráfica, en kilos reales por día.');
   document.getElementById('v-nota').innerHTML=nt.join('<br>');
 }
 var IDX=Object.keys(D.vacas).map(function(id){ return {id:id, nom:D.vacas[id].nombre||''}; });
