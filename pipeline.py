@@ -4,10 +4,12 @@ Demo de producción lechera por vaca — AIOROS.
 
   1. Limpieza de datos (Holstein, Indonesia, un registro por lactancia)
   2. Curva diaria de cada lactancia (modelo de Wood) a partir de pico, día del pico y total
-  3. a) Predicción de la siguiente lactancia: XGBoost regularizado vs regresión lineal
+  3. a) Predicción de la siguiente lactancia: XGBoost regularizado vs regresión lineal, con el
+        nivel del semental (producción de sus otras hijas) como variable y un margen del 80 %
   4. b) Anomalías de baja producción con Isolation Forest, comparando a cada vaca con su
         historial, con lo que esperaba el modelo y con el resto del hato
   5. Validación de rangos contra el dataset de República Checa
+  6. Sementales: cuánto producen sus hijas frente al promedio del hato
 
 Todas las cifras y los motivos de cada alerta los calcula este código; nada los inventa.
 Salida: salida/datos_demo.json (alimenta el dashboard), salida/metricas.json y los dos modelos
@@ -25,6 +27,7 @@ import pandas as pd
 import xgboost as xgb
 from scipy.optimize import brentq
 from scipy.special import gamma, gammainc
+from scipy.stats import t as student_t
 from sklearn.ensemble import IsolationForest
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GroupKFold
@@ -47,6 +50,10 @@ DIAS_CURVA = 305
 SEMILLA = 0
 CUANTIL_BAJO = 0.20       # "entre las más bajas" = 20 % inferior
 CONTAMINACION = 0.06      # proporción esperada de anomalías para Isolation Forest
+K_SEMENTAL = 10           # hijas "promedio" que se suman al calcular el nivel de un semental
+COBERTURA = 0.80          # el margen de la predicción contiene a 8 de cada 10 vacas
+MIN_HIJAS = 10            # hijas mínimas para mostrar un semental en el dashboard
+NO_IDENTIFICADOS = {"sin registro", "Bull Mix", "Holstein Bull"}   # semen mezclado o toro sin nombre
 
 
 # ───────────────────────────────────────────── 1. limpieza
@@ -77,8 +84,21 @@ def cargar_y_limpiar():
         d = d[~mascara]
     d["vaca"] = pd.to_numeric(d["vaca"]).astype(int)
     d["nombre"] = d["nombre"].fillna("").astype(str).str.strip()
-    d["semental"] = d["semental"].fillna("sin registro").astype(str).str.strip()
-    return crudo, d.sort_values(["vaca", "lact"]).reset_index(drop=True), removidos
+    d["semental"] = d["semental"].fillna("sin registro").astype(str).str.strip().str.replace(r"\s+", " ", regex=True)
+    d, unificados = unificar_sementales(d)
+    return crudo, d.sort_values(["vaca", "lact"]).reset_index(drop=True), removidos, unificados
+
+
+def unificar_sementales(d):
+    """El mismo toro aparece escrito de varias formas ("Bull Mix" / "Bull mix", "K. Big Time" /
+    "K.BigTime"). Se unifican las que solo difieren en mayúsculas, espacios, puntos o guiones,
+    usando la forma más frecuente. Las que difieren en letras (por ejemplo ET / XA) no se tocan."""
+    clave = d["semental"].str.lower().str.replace(r"[\s.\-]", "", regex=True)
+    frecuente = d.groupby(clave)["semental"].agg(lambda s: s.value_counts().index[0])
+    nuevo = clave.map(frecuente)
+    cambios = d.loc[nuevo != d["semental"], "semental"].to_frame().assign(a=nuevo).drop_duplicates()
+    d = d.assign(semental=nuevo)
+    return d, [{"antes": r["semental"], "queda": r["a"]} for _, r in cambios.iterrows()]
 
 
 # ───────────────────────────────────────────── 2. curva de Wood
@@ -105,6 +125,7 @@ def curva(a, b, c, dias):
 
 # ───────────────────────────────────────────── 3. predicción de la siguiente lactancia
 RASGOS = ["corregida", "pico", "dias_pico", "duracion", "dias_secos", "lact", "media_hist"]
+RASGOS_MODELO = RASGOS + ["nivel_semental"]
 MODELOS = {"lineal": "Regresión lineal", "xgboost": "XGBoost regularizado"}
 
 
@@ -117,6 +138,28 @@ def pares_consecutivos(d):
     return d, pares
 
 
+def nivel_semental(d, vacas_base, filas, excluir_propia):
+    """Producción de las hijas del semental, en desviaciones estándar frente a su grupo de lactancia,
+    con K_SEMENTAL hijas promedio añadidas: un toro con pocas hijas queda cerca de 0 (el promedio).
+    Solo usa las vacas de vacas_base, para que en la validación no entren datos de prueba; con
+    excluir_propia, la vaca de cada fila no cuenta en el nivel de su propio padre."""
+    base = d[d["vaca"].isin(vacas_base)]
+    g = base.groupby("lact")["corregida"]
+    z = (base["corregida"] - g.transform("mean")) / g.transform("std")
+    suma = filas["semental"].map(z.groupby(base["semental"]).sum()).fillna(0).values
+    n = filas["semental"].map(z.groupby(base["semental"]).count()).fillna(0).values
+    if excluir_propia:
+        suma = suma - filas["vaca"].map(z.groupby(base["vaca"]).sum()).fillna(0).values
+        n = n - filas["vaca"].map(z.groupby(base["vaca"]).count()).fillna(0).values
+    return suma / (n + K_SEMENTAL)
+
+
+def matriz(filas, d, vacas_base, excluir_propia):
+    X = filas[RASGOS].copy()
+    X["nivel_semental"] = nivel_semental(d, vacas_base, filas, excluir_propia)
+    return X[RASGOS_MODELO].values
+
+
 def modelo_xgb():
     return xgb.XGBRegressor(n_estimators=300, learning_rate=0.03, max_depth=2, min_child_weight=10,
                             subsample=0.8, colsample_bytree=0.8, reg_lambda=5.0, random_state=SEMILLA)
@@ -127,14 +170,16 @@ def deteccion_bajas(y, p):
     return float((bajo & anticipado).sum() / bajo.sum())
 
 
-def evaluar_modelos(pares, forzado=None):
-    X, y, grupos = pares[RASGOS].values, pares["objetivo"].values, pares["vaca"].values
+def evaluar_modelos(pares, d, forzado=None):
+    y, grupos = pares["objetivo"].values, pares["vaca"].values
     cv = GroupKFold(n_splits=5)                  # la misma vaca nunca está en entrenamiento y prueba
     oof, resultados = {}, {}
     for nombre, fabrica in [(MODELOS["lineal"], LinearRegression), (MODELOS["xgboost"], modelo_xgb)]:
         p = np.zeros(len(y))
-        for tr, te in cv.split(X, y, grupos):
-            p[te] = fabrica().fit(X[tr], y[tr]).predict(X[te])
+        for tr, te in cv.split(pares, y, grupos):
+            base = pares["vaca"].iloc[tr].unique()
+            p[te] = fabrica().fit(matriz(pares.iloc[tr], d, base, True), y[tr]).predict(
+                matriz(pares.iloc[te], d, base, False))
         oof[nombre] = p
         l12 = pares["lact"].values == 1
         resultados[nombre] = {
@@ -147,19 +192,31 @@ def evaluar_modelos(pares, forzado=None):
         }
     elegido = MODELOS[forzado] if forzado else min(resultados, key=lambda k: resultados[k]["mae"])
     base = float(np.abs(y.mean() - y).mean())
-    return resultados, elegido, oof[elegido], base
+    # margen: el error, en % de lo predicho, que no superaron 8 de cada 10 vacas en la validación
+    # (conformal partido). En % y no en kg porque así cubre igual a vacas de baja y de alta producción.
+    margen = float(np.quantile(np.abs(oof[elegido] - y) / oof[elegido], COBERTURA))
+    return resultados, elegido, oof[elegido], base, margen
 
 
-def entrenar_y_guardar(pares):
+def entrenar_y_guardar(pares, d):
     """Entrena los dos modelos con todos los pares y los guarda en modelos/ para usarlos fuera."""
-    X, y = pares[RASGOS].values, pares["objetivo"].values
+    todas = d["vaca"].unique()
+    X, y = matriz(pares, d, todas, True), pares["objetivo"].values
     lineal, arboles = LinearRegression().fit(X, y), modelo_xgb().fit(X, y)
     (MOD / "regresion_lineal.json").write_text(json.dumps(
-        {"rasgos": RASGOS, "objetivo": "producción corregida a 305 días de la siguiente lactancia (kg)",
+        {"rasgos": RASGOS_MODELO, "objetivo": "producción corregida a 305 días de la siguiente lactancia (kg)",
          "intercepto": float(lineal.intercept_),
-         "coeficientes": {k: float(c) for k, c in zip(RASGOS, lineal.coef_)},
+         "coeficientes": {k: float(c) for k, c in zip(RASGOS_MODELO, lineal.coef_)},
          "pares_de_entrenamiento": int(len(y))}, ensure_ascii=False, indent=2), encoding="utf-8")
     arboles.save_model(MOD / "xgboost.json")
+    # nivel de cada semental con todas sus hijas, para predecir hijas que no están en estos datos
+    niveles = pd.DataFrame({"semental": sorted(d["semental"].unique()), "vaca": -1})
+    (MOD / "nivel_semental.json").write_text(json.dumps(
+        {"descripcion": "Variable nivel_semental para vacas nuevas. Un semental que no esté aquí vale 0.",
+         "k": K_SEMENTAL,
+         "niveles": {s: round(float(v), 5) for s, v in zip(niveles["semental"],
+                                                            nivel_semental(d, todas, niveles, False))}},
+        ensure_ascii=False, indent=2), encoding="utf-8")
     return {MODELOS["lineal"]: lineal, MODELOS["xgboost"]: arboles}
 
 
@@ -233,6 +290,19 @@ def validar(d):
     return tabla, limites, int(len(che))
 
 
+# ───────────────────────────────────────────── 6. sementales
+def sementales(d):
+    """Diferencia de las hijas de cada semental contra el promedio de su misma lactancia, en kg
+    corregidos. Cada hija pesa lo mismo (se promedian primero sus lactancias). Intervalo del 90 %."""
+    dif = d["corregida"] - d.groupby("lact")["corregida"].transform("mean")
+    hijas = dif.groupby([d["semental"], d["vaca"]]).mean()
+    s = hijas.groupby(level=0).agg(["count", "mean", "std"])
+    s = s[(s["count"] >= MIN_HIJAS) & ~s.index.isin(NO_IDENTIFICADOS)].sort_values("mean", ascending=False)
+    t = student_t.ppf(0.95, s["count"] - 1) * s["std"] / np.sqrt(s["count"])
+    return [{"semental": k, "hijas": int(r["count"]), "kg": round(r["mean"]), "bajo": round(r["mean"] - t[k]),
+             "alto": round(r["mean"] + t[k])} for k, r in s.iterrows()]
+
+
 # ───────────────────────────────────────────── main
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -240,8 +310,9 @@ def main():
                     help="auto: el de menor error en la validación cruzada (por defecto)")
     forzado = None if (m := ap.parse_args().modelo) == "auto" else m
 
-    crudo, d, removidos = cargar_y_limpiar()
-    print(f"[1] {len(crudo)} registros -> {len(d)} válidos ({d['vaca'].nunique()} vacas)")
+    crudo, d, removidos, unificados = cargar_y_limpiar()
+    print(f"[1] {len(crudo)} registros -> {len(d)} válidos ({d['vaca'].nunique()} vacas) | sementales unificados: "
+          + ", ".join(f"{u['antes']} -> {u['queda']}" for u in unificados))
 
     params, curvas = {}, {n: [] for n in HOJAS}
     for i, r in d.iterrows():
@@ -257,19 +328,19 @@ def main():
     print(f"[2] curva reconstruida en {len(params)} de {len(d)} lactancias")
 
     d, pares = pares_consecutivos(d)
-    resultados, elegido, oof, base = evaluar_modelos(pares, forzado)
+    resultados, elegido, oof, base, margen = evaluar_modelos(pares, d, forzado)
     for k, v in resultados.items():
         print(f"[3] {k:22s} MAE {v['mae']:.0f} kg | R2 {v['r2']:.2f} | anticipa {v['deteccion']*100:.0f}% "
               f"| 1ra->2da: MAE {v['mae_l1_l2']:.0f}, anticipa {v['deteccion_l1_l2']*100:.0f}%")
     print(f"    elegido: {elegido} ({'forzado' if forzado else 'menor error'}) | referencia (promedio): "
-          f"MAE {base:.0f} kg | {len(pares)} pares")
+          f"MAE {base:.0f} kg | {len(pares)} pares | margen {COBERTURA:.0%}: ±{margen:.1%}")
 
     # lista de vigilancia: siguiente lactancia de cada vaca, con el modelo elegido entrenado con todo
-    final = entrenar_y_guardar(pares)[elegido]
-    print(f"[3] modelos guardados en {MOD.name}/: regresion_lineal.json y xgboost.json")
+    final = entrenar_y_guardar(pares, d)[elegido]
+    print(f"[3] modelos guardados en {MOD.name}/: regresion_lineal.json, xgboost.json y nivel_semental.json")
     ultima = d.loc[d.groupby("vaca")["lact"].idxmax()]
     ultima = ultima[ultima["lact"] < 4].copy()
-    ultima["pred_siguiente"] = final.predict(ultima[RASGOS].values)
+    ultima["pred_siguiente"] = final.predict(matriz(ultima, d, d["vaca"].unique(), True))
     ultima["percentil_pred"] = ultima.groupby("lact")["pred_siguiente"].rank(pct=True)
     vigilar = ultima[ultima["percentil_pred"] <= CUANTIL_BAJO].sort_values("percentil_pred")
     print(f"[3] lista de vigilancia: {len(vigilar)} vacas de {len(ultima)} con una lactancia siguiente posible")
@@ -292,6 +363,10 @@ def main():
 
     tabla, limites, n_checa = validar(d)
     print(f"[5] validación contra {n_checa} lactancias de República Checa")
+    toros = sementales(d)
+    distintos = [s for s in toros if s["bajo"] > 0 or s["alto"] < 0]
+    print(f"[6] {len(toros)} sementales con {MIN_HIJAS} hijas o más; {len(distintos)} se distinguen del promedio")
+    por_toro = {s["semental"]: s for s in toros}
 
     def motivos_vigilancia(r):
         m = [f"producción prevista en {int(r['lact'])+1}.ª lactancia: {r['pred_siguiente']:,.0f} kg, "
@@ -301,6 +376,9 @@ def main():
             m.append(f"pico de {r['pico']:.1f} kg/día en su {int(r['lact'])}.ª lactancia (mediana {med['pico']:.1f})")
         if r["duracion"] < med["duracion"]:
             m.append(f"lactancia de {r['duracion']:.0f} días (mediana {med['duracion']:.0f})")
+        s = por_toro.get(r["semental"])
+        if s and s["alto"] < 0:
+            m.append(f"hija de {s['semental']}: sus {s['hijas']} hijas producen {abs(s['kg']):,} kg menos que el promedio")
         return m
 
     vacas = {}
@@ -321,7 +399,8 @@ def main():
     salida = {
         "resumen": {"registros_crudos": int(len(crudo)), "lactancias_validas": int(len(d)),
                     "vacas": int(d["vaca"].nunique()),
-                    "sementales": int(d.loc[d["semental"] != "sin registro", "semental"].nunique()),
+                    "sementales": int(d.loc[~d["semental"].isin(NO_IDENTIFICADOS), "semental"].nunique()),
+                    "sementales_unificados": unificados,
                     "curvas_reconstruidas": len(params), "removidos": removidos,
                     "pares": int(len(pares)), "lactancias_checas": n_checa},
         "curvas_mediana": {str(n): [None if np.isnan(x) else round(float(x), 2) for x in c]
@@ -329,6 +408,7 @@ def main():
         "n_curvas": {str(n): len(v) for n, v in curvas.items()},
         "factor_real_corregida": {str(int(n)): round(float(k), 4) for n, k in k305.items()},
         "modelo": {"resultados": resultados, "elegido": elegido, "forzado": bool(forzado), "mae_promedio": base,
+                   "margen": round(margen, 4), "cobertura": COBERTURA, "rasgos": RASGOS_MODELO,
                    "cuantil_bajo": CUANTIL_BAJO, "contaminacion": CONTAMINACION},
         "vigilancia": [{"vaca": str(r["vaca"]), "nombre": r["nombre"], "semental": r["semental"],
                         "lact": int(r["lact"]), "pred": round(r["pred_siguiente"]),
@@ -340,12 +420,14 @@ def main():
                        "puntaje": round(float(r["puntaje"]), 3), "motivos": motivos(r, medianas)}
                       for _, r in anom.iterrows()],
         "validacion": {"tabla": tabla, "limites": limites},
+        "sementales": {"min_hijas": MIN_HIJAS, "intervalo": 0.90, "lista": toros},
         "vacas": vacas,
     }
     (SAL / "datos_demo.json").write_text(json.dumps(salida, ensure_ascii=False, separators=(",", ":")),
                                          encoding="utf-8")
     (SAL / "metricas.json").write_text(json.dumps({"resumen": salida["resumen"], "modelo": salida["modelo"],
-                                                    "validacion": salida["validacion"]},
+                                                    "validacion": salida["validacion"],
+                                                    "sementales": salida["sementales"]},
                                                    ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"listo: salida/datos_demo.json ({(SAL / 'datos_demo.json').stat().st_size // 1024} KB)")
 

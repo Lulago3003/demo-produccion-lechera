@@ -48,6 +48,8 @@ n_anom = len({a["vaca"] for a in D["anomalias"]})
 picos = {n: max(x for x in D["curvas_mediana"][str(n)] if x is not None) for n in (1, 2, 3, 4)}
 p234 = sum(picos[n] for n in (2, 3, 4)) / 3
 pct = lambda x: f"{x * 100:.0f}%"
+distintos = [s["kg"] for s in D["sementales"]["lista"] if s["bajo"] > 0 or s["alto"] < 0]
+n_toros, toro_dif = len(distintos), max(distintos) - min(distintos)
 
 dias = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre",
@@ -69,11 +71,15 @@ for t in [
     f"total se reconstruye la curva con el modelo de Wood. Salió en {r['curvas_reconstruidas']:,} de "
     f"{r['lactancias_validas']:,} lactancias. Muestra que desde la 2.ª lactancia el pico sube de {picos[1]:.0f} a unos "
     f"{p234:.0f} kg por día.",
-    "<b>a) Predicción.</b> Se estima la producción de la siguiente lactancia a partir de la anterior, comparando "
-    "XGBoost regularizado contra regresión lineal, con validación cruzada que separa vacas. En la ficha de cada vaca "
-    "se dibuja además la curva que esperaba el modelo y su próxima lactancia prevista, en kilos reales por día.",
+    f"<b>a) Predicción.</b> Se estima la producción de la siguiente lactancia a partir de la anterior y del nivel de "
+    f"su semental, comparando XGBoost regularizado contra regresión lineal, con validación cruzada que separa vacas. "
+    f"En la ficha de cada vaca se dibuja la curva que esperaba el modelo y su próxima lactancia prevista, con un "
+    f"margen de ±{m['margen'] * 100:.0f}% que contuvo a 8 de cada 10 vacas en la validación.",
     "<b>b) Anomalías.</b> Isolation Forest sobre la diferencia entre lo producido y lo esperado, comparando a cada "
     "vaca con su propio historial, con lo que predijo el modelo y con el resto del hato.",
+    f"<b>Sementales.</b> Se compara a los {len(D['sementales']['lista'])} toros con "
+    f"{D['sementales']['min_hijas']} hijas o más: {n_toros} se distinguen del promedio, y entre el mejor y el peor de "
+    f"ellos hay {toro_dif:,} kg de leche por lactancia en sus hijas.",
     f"<b>Validación.</b> Los rangos de producción e intervalo entre partos se compararon con "
     f"{r['lactancias_checas']} lactancias de República Checa y son coherentes.",
 ]:

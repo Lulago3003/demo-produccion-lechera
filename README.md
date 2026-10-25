@@ -14,8 +14,9 @@ con datos públicos de 1,051 vacas Holstein.
 2. **Reconstruye la curva diaria de cada lactancia** con el modelo de Wood,
    `y(t) = a·t^b·e^(-c·t)`, a partir del pico, el día del pico y el total.
    El dataset no trae registros diarios.
-3. **Predice la siguiente lactancia** a partir de la anterior. Compara XGBoost
-   regularizado contra regresión lineal con validación cruzada agrupada por vaca y se
+3. **Predice la siguiente lactancia** a partir de la anterior y del nivel de su semental
+   (cuánto producen sus otras hijas), con un margen de ±17% que contiene a 8 de cada 10
+   vacas. Compara XGBoost regularizado contra regresión lineal con validación cruzada agrupada por vaca y se
    queda con el de menor error (se puede forzar con `--modelo xgboost`). Los dos modelos
    entrenados quedan en `modelos/`.
 4. **Dibuja la curva esperada de cada vaca.** El modelo predice el total de la lactancia
@@ -26,13 +27,15 @@ con datos públicos de 1,051 vacas Holstein.
 5. **Detecta baja producción** con Isolation Forest sobre la diferencia entre lo
    producido y lo esperado, frente al historial de la vaca y al resto del hato.
 6. **Valida rangos** contra 723 lactancias de República Checa.
+7. **Compara sementales**: cuánto producen las hijas de cada toro con 10 hijas o más frente al
+   promedio del hato, con su intervalo del 90%.
 
 ## Resultados
 
 | Modelo | Error medio | Anticipa, 1.ª→2.ª lactancia |
 |---|---|---|
-| Regresión lineal (elegido) | 820 kg | 41% |
-| XGBoost regularizado | 838 kg | 38% |
+| Regresión lineal (elegido) | 813 kg | 44% |
+| XGBoost regularizado | 833 kg | 37% |
 | Usar el promedio | 930 kg | 20% (azar) |
 
 "Anticipa" es la parte de las vacas que terminaron en el 20% más bajo de su 2.ª

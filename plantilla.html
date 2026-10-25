@@ -94,7 +94,7 @@ tr.prevista td{color:var(--tinta2);font-style:italic}
 .registro{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:46px 0 10px}
 .registro > div{padding:0 32px 0 0}
 .registro > div + div{padding:0 0 0 32px;border-left:1px solid var(--linea)}
-.registro h2,.ficha h2,.metodo h2{margin:0 0 8px;font:700 27px/1.12 var(--numero);letter-spacing:-.1px}
+.registro h2,.ficha h2,.metodo h2,.toros h2{margin:0 0 8px;font:700 27px/1.12 var(--numero);letter-spacing:-.1px}
 .registro p.intro{margin:0 0 14px;color:var(--tinta2);max-width:58ch;font-size:14.5px}
 .boton{display:inline-flex;align-items:center;gap:7px;background:var(--hoja);color:var(--tinta);
   border:1.5px solid #B9C4B4;border-radius:6px;padding:7px 13px;font:600 14px var(--texto);cursor:pointer}
@@ -138,6 +138,24 @@ tr.prevista td{color:var(--tinta2);font-style:italic}
 .nota{font-size:13.5px;color:var(--tinta2);margin-top:12px;line-height:1.6}
 .nota b{color:var(--tinta)}
 
+/* sementales */
+.toros{padding:8px 0 50px}
+.toros p.intro{margin:0 0 18px;color:var(--tinta2);max-width:70ch;font-size:14.5px}
+.toros-cuerpo{display:grid;grid-template-columns:1.6fr 1fr;gap:32px;align-items:start}
+.toros-cuerpo > div{min-width:0}
+.clave{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--tinta2);margin:0 0 10px}
+.clave span{display:flex;align-items:center;gap:7px}
+.clave svg{width:14px;height:14px;flex:none}
+.destacados{list-style:none;margin:6px 0 0;padding:0;border-top:1.5px solid var(--linea)}
+.destacados li{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:10px 2px;border-bottom:1px solid var(--linea);font-size:14px}
+.destacados .kg{font:700 19px/1 var(--numero);text-align:right}
+.destacados .det{grid-column:1/-1;color:var(--tenue);font-size:12.5px}
+.toros h3{margin:0 0 4px;font:700 19px/1.2 var(--numero)}
+.fila-toro rect{fill:transparent}
+.fila-toro:hover rect{fill:#F3F6F0}
+.ej-nom{fill:var(--tinta);font:13px var(--texto)}
+.ej-n{fill:var(--tenue);font:12px var(--texto)}
+
 /* cómo se calculó */
 .metodo{background:var(--salvia);padding:44px 0 46px}
 .tres{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:18px}
@@ -157,7 +175,7 @@ footer b{color:var(--tinta2)}
 @media(max-width:920px){
   .ancho{padding:0 20px}
   .hallazgo{font-size:36px}
-  .registro,.ficha-cuerpo,.tres{grid-template-columns:1fr}
+  .registro,.ficha-cuerpo,.tres,.toros-cuerpo{grid-template-columns:1fr}
   .registro > div,.registro > div + div{padding:0;border-left:0}
   .registro > div + div{margin-top:40px}
   .ficha-cab{grid-template-columns:auto 1fr}
@@ -222,6 +240,32 @@ footer b{color:var(--tinta2)}
   </div>
 </section>
 
+<section class="ancho toros" id="sementales">
+  <h2>{{TOROS_TITULAR}}</h2>
+  <p class="intro">Cuánto producen las hijas de cada semental frente al promedio de las vacas en su misma lactancia,
+    en kg corregidos a 305 días. Solo sementales con {{MIN_HIJAS}} hijas o más. La línea es el intervalo del 90%: si
+    cruza el cero, con estos datos no se puede decir que el toro sea distinto del promedio.</p>
+  <div class="toros-cuerpo">
+    <div>
+      <div class="clave" aria-hidden="true">
+        <span><svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--l3)"/></svg>Se distingue del promedio</span>
+        <span><svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="4.5" fill="#fff" stroke="var(--l3)" stroke-width="2"/></svg>No se distingue con estos datos</span>
+      </div>
+      <div class="grafica" id="g-toros"></div>
+      <div class="tabla" id="t-toros"></div>
+      <div class="pie"><span></span><button class="enlace" id="alternar-toros">Ver los valores en una tabla</button></div>
+    </div>
+    <div>
+      <h3>Los que marcan diferencia</h3>
+      <ul class="destacados" id="l-toros"></ul>
+      <p class="nota">Sirve para decidir con qué semen seguir inseminando. Las vacas del registro son hijas de
+        {{SEMENTALES}} sementales identificados; los que no aparecen aquí tienen menos de {{MIN_HIJAS}} hijas y su
+        promedio todavía no es confiable. El modelo de predicción usa este mismo dato como una de sus variables.</p>
+      <button class="boton" data-exportar="sementales"><svg aria-hidden="true"><use href="#i-desc"/></svg>Descargar en Excel</button>
+    </div>
+  </div>
+</section>
+
 <section class="metodo">
   <div class="ancho">
     <h2>Cómo se calculó</h2>
@@ -229,14 +273,15 @@ footer b{color:var(--tinta2)}
       <div>
         <h3>Los datos</h3>
         <p>De las {{CRUDOS}} filas del archivo quedaron {{LACTS}} lactancias válidas de {{VACAS}} vacas, hijas de
-          {{SEMENTALES}} sementales.</p>
+          {{SEMENTALES}} sementales identificados.</p>
         <div class="desliza"><table id="t-limpieza"></table></div>
       </div>
       <div>
         <h3>La predicción</h3>
-        <p>El modelo estima la producción de la siguiente lactancia a partir de la anterior. Se validó separando
-          vacas: la misma vaca nunca estuvo a la vez en entrenamiento y en prueba. Para dibujar lo esperado, el total
-          predicho se pasa a kilos reales y se reparte día a día con la forma de la curva del hato.</p>
+        <p>El modelo estima la producción de la siguiente lactancia a partir de la anterior y del nivel de su
+          semental. Se validó separando vacas: la misma vaca nunca estuvo a la vez en entrenamiento y en prueba. Para
+          dibujar lo esperado, el total predicho se pasa a kilos reales y se reparte día a día con la forma de la
+          curva del hato.</p>
         <div class="desliza"><table id="t-modelo"></table></div>
         <p class="nota" id="n-modelo"></p>
       </div>
@@ -276,7 +321,7 @@ function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {'&':'&a
 
 function grafica(cont, o){
   cont._o=o; var W=Math.max(320,Math.round(cont.clientWidth||1100)), H=o.alto, PL=50, PR=24, PT=22, PB=40, N=o.dias, vals=[];
-  o.series.forEach(function(s){ s.v.forEach(function(x){ if(x!=null) vals.push(x); }); });
+  o.series.forEach(function(s){ (s.banda?s.banda[1]:s.v).forEach(function(x){ if(x!=null) vals.push(x); }); });
   var e=escalaY(Math.max.apply(null,vals)), ymax=e.max;
   var X=function(d){ return PL+(d-1)/(N-1)*(W-PL-PR); }, Y=function(v){ return H-PB-(v/ymax)*(H-PT-PB); };
   var h=['<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.aria)+'">'];
@@ -287,6 +332,11 @@ function grafica(cont, o){
   for(var d=0; d<=N; d+=paso) h.push('<text class="ej" x="'+X(Math.max(1,d))+'" y="'+(H-PB+18)+'" text-anchor="middle">'+d+'</text>');
   h.push('<text class="ej" x="'+(W-PR)+'" y="'+(H-4)+'" text-anchor="end">días desde el parto</text>');
   h.push('<text class="ej" x="'+PL+'" y="'+(PT-8)+'">kg de leche por día</text>');
+  // margen del modelo: franja entre la curva baja y la alta, debajo de todas las líneas
+  o.series.forEach(function(s){ if(!s.banda) return; var a=[], b=[];
+    s.banda[1].forEach(function(x,i){ if(x!=null) a.push(X(i+1).toFixed(1)+' '+Y(x).toFixed(1)); });
+    s.banda[0].forEach(function(x,i){ if(x!=null) b.unshift(X(i+1).toFixed(1)+' '+Y(x).toFixed(1)); });
+    h.push('<path d="M'+a.concat(b).join('L')+'Z" fill="'+s.c+'" fill-opacity=".14" stroke="none"/>'); });
   o.series.forEach(function(s){ var p='', pluma=false;
     s.v.forEach(function(x,i){ if(x==null){ pluma=false; return; } p+=(pluma?'L':'M')+X(i+1).toFixed(1)+' '+Y(x).toFixed(1); pluma=true; });
     h.push('<path class="'+(o.animar?'dibujar':'')+'" d="'+p+'" fill="none" stroke="'+s.c+'" stroke-width="'+(s.ancho||2)+'" stroke-linejoin="round" stroke-linecap="round"'+(s.dash?' stroke-dasharray="'+s.dash+'"':'')+'/>'); });
@@ -314,20 +364,23 @@ function grafica(cont, o){
     var f=['<div class="g1">Día '+d+' después del parto</div>'];
     o.series.forEach(function(s,i){ var v=s.v[d-1]; if(v==null){ pts[i].style.display='none'; return; }
       pts[i].style.display=''; pts[i].setAttribute('cx',x); pts[i].setAttribute('cy',Y(v));
-      f.push('<div class="gf"><i style="background:'+s.c+'"></i>'+s.n+': <b>'+fmt(v,1)+' kg</b></div>'); });
+      f.push('<div class="gf"><i style="background:'+s.c+'"></i>'+s.n+': <b>'+fmt(v,1)+' kg</b>'+
+        (s.banda?' <span style="color:var(--tenue)">(entre '+fmt(s.banda[0][d-1],1)+' y '+fmt(s.banda[1][d-1],1)+')</span>':'')+'</div>'); });
     gl.innerHTML=f.join(''); cr.style.opacity=1; gl.style.opacity=1;
     var px=x/k, gw=gl.offsetWidth; gl.style.left=Math.max(6,Math.min(px+16,r.width-gw-6))+'px'; gl.style.top='14px';
   });
   svg.addEventListener('mouseleave',function(){ cr.style.opacity=0; gl.style.opacity=0; });
 }
 function leyenda(el,series){ el.innerHTML=series.map(function(s){
+    if(s.franja) return '<span><i style="background:'+s.c+';opacity:.22;height:10px"></i>'+s.n+'</span>';
     var t=s.trazo==='puntos'?[3,7]:(s.trazo?[6,9]:null);
     var bg=t?'repeating-linear-gradient(90deg,'+s.c+' 0 '+t[0]+'px,transparent '+t[0]+'px '+t[1]+'px)':s.c;
     return '<span><i style="background:'+bg+'"></i>'+s.n+'</span>'; }).join(''); }
 var TRAZO={discontinua:'7 5', puntos:'0.1 6'};
 
 var _rt; window.addEventListener('resize',function(){ clearTimeout(_rt); _rt=setTimeout(function(){
-  ['g-principal','g-vaca'].forEach(function(id){ var c=document.getElementById(id); if(c._o && c.offsetParent){ var o=Object.assign({},c._o,{animar:false}); grafica(c,o); } }); },150); });
+  ['g-principal','g-vaca'].forEach(function(id){ var c=document.getElementById(id); if(c._o && c.offsetParent){ var o=Object.assign({},c._o,{animar:false}); grafica(c,o); } });
+  var gt=document.getElementById('g-toros'); if(gt.offsetParent) graficaToros(gt); },150); });
 
 // curva principal
 var principal=[1,2,3,4].map(function(n){ return {n:ORD[n-1]+' lactancia', c:COLOR[n-1], v:D.curvas_mediana[n], et:ORD[n-1], ancho:2.5}; });
@@ -363,6 +416,11 @@ var MED={}; [1,2,3,4].forEach(function(n){ var xs=[]; for(var id in D.vacas) D.v
 function esperada(n,kg,dmax,dias){ dias=Math.min(dias||305,305);
   var base=D.curvas_mediana[n].slice(0,dias), suma=base.reduce(function(t,x){ return t+(x||0); },0), k=kg/suma;
   var y=base.map(function(x){ return x==null?null:x*k; }); while(y.length<dmax) y.push(null); return y; }
+// margen del modelo: 8 de cada 10 vacas quedaron dentro de ±margen de lo predicho en la validación
+function banda(v){ var m=D.modelo.margen; return [v.map(function(x){ return x==null?null:x*(1-m); }), v.map(function(x){ return x==null?null:x*(1+m); })]; }
+var TORO={}; D.sementales.lista.forEach(function(s){ TORO[s.semental]=s; });
+function distinto(s){ return s.bajo>0 || s.alto<0; }
+function kgFirmado(n){ return (n>0?'+':n<0?'−':'')+fmt(Math.abs(n)); }
 function mostrar(id){
   var v=D.vacas[id]; if(!v) return;
   var dmax=Math.min(460,Math.max(305,Math.max.apply(null,v.lacts.map(function(l){ return l.dur; }))));
@@ -371,20 +429,23 @@ function mostrar(id){
   // solo lo que cuenta la historia de esta vaca: anomalía -> real vs esperada;
   // a vigilar -> próxima lactancia prevista; sin alertas -> esperada de su última lactancia
   var ult=v.lacts[v.lacts.length-1], modelo=[], hay={esperada:false, prevista:false, mediana:false};
-  function serieEsperada(l){ hay.esperada=true; return {n:ORD[l.n-1]+' lactancia, esperada por el modelo', c:COLOR[l.n-1], v:esperada(l.n,l.e305,dmax,l.dur), trazo:'discontinua', dash:TRAZO.discontinua}; }
-  function seriePrevista(){ hay.prevista=true; return {n:ORD[v.prox.n-1]+' lactancia, prevista por el modelo', c:COLOR[v.prox.n-1], v:esperada(v.prox.n,v.prox.p305,dmax), trazo:'puntos', dash:TRAZO.puntos, ancho:2.8}; }
+  function serieEsperada(l){ hay.esperada=true; return {n:ORD[l.n-1]+' lactancia, esperada por el modelo', c:COLOR[l.n-1], v:esperada(l.n,l.e305,dmax,l.dur), banda:banda(esperada(l.n,l.e305,dmax,l.dur)), trazo:'discontinua', dash:TRAZO.discontinua}; }
+  function seriePrevista(){ hay.prevista=true; return {n:ORD[v.prox.n-1]+' lactancia, prevista por el modelo', c:COLOR[v.prox.n-1], v:esperada(v.prox.n,v.prox.p305,dmax), banda:banda(esperada(v.prox.n,v.prox.p305,dmax)), trazo:'puntos', dash:TRAZO.puntos, ancho:2.8}; }
   v.lacts.forEach(function(l){ if(l.e305 && l.anom) modelo.push(serieEsperada(l)); });
   if(VIG[id] && v.prox) modelo.push(seriePrevista());
   if(!modelo.length){ if(ult.e305) modelo.push(serieEsperada(ult)); else if(v.prox) modelo.push(seriePrevista()); }
   s=s.concat(modelo);
   if(!modelo.length){ hay.mediana=true; var ref=D.curvas_mediana[ult.n].slice(); while(ref.length<dmax) ref.push(null);
     s.push({n:'Mediana del hato en '+ORD[ult.n-1]+' lactancia', c:'var(--ref)', v:ref, trazo:'discontinua', dash:TRAZO.discontinua}); }
-  leyenda(document.getElementById('ley-vaca'), s);
+  var conBanda=s.filter(function(x){ return x.banda; })[0];
+  leyenda(document.getElementById('ley-vaca'), conBanda ? s.concat([{n:'Margen del modelo', c:conBanda.c, franja:true}]) : s);
   grafica(document.getElementById('g-vaca'), {series:s, dias:dmax, alto:360, aria:'Curvas de lactancia de la vaca '+id});
   document.getElementById('v-arete').textContent=id;
   document.getElementById('v-nombre').textContent=v.nombre||'Sin nombre';
   var n=v.lacts.length;
-  document.getElementById('v-sub').textContent=(v.semental==='sin registro'?'Semental sin registro':'Hija del semental '+v.semental)+'. '+n+' lactancia'+(n>1?'s':'')+' registrada'+(n>1?'s':'')+'.';
+  document.getElementById('v-sub').textContent=(v.semental==='sin registro'?'Semental sin registro':'Hija del semental '+v.semental)+'. '+n+' lactancia'+(n>1?'s':'')+' registrada'+(n>1?'s':'')+'.'+(function(tr){ if(!tr) return '';
+    return distinto(tr) ? ' Las '+tr.hijas+' hijas de ese toro producen '+fmt(Math.abs(tr.kg))+' kg '+(tr.kg>0?'más':'menos')+' que el promedio.'
+                        : ' Las hijas de ese toro producen como el promedio del hato.'; })(TORO[v.semental]);
   var e=[];
   if(ANO[id]) ANO[id].forEach(function(a){ e.push('<span class="estado e-ano"><svg aria-hidden="true"><use href="#i-baja"/></svg>Baja producción en su '+ORD[a.lact-1]+' lactancia</span>'); });
   if(VIG[id]) e.push('<span class="estado e-vig"><svg aria-hidden="true"><use href="#i-ojo"/></svg>A vigilar en su '+ORD[VIG[id].lact]+' lactancia</span>');
@@ -398,10 +459,11 @@ function mostrar(id){
   var nt=[];
   if(ANO[id]) ANO[id].forEach(function(a){ nt.push('<b>'+ORD[a.lact-1]+' lactancia:</b> '+esc(a.motivos.join('; '))+'.'); });
   if(VIG[id]) nt.push('<b>Próxima lactancia:</b> '+esc(VIG[id].motivos.join('; '))+'.');
+  if(hay.prevista){ var m=D.modelo.margen, p=v.prox.pred; nt.push('<b>'+ORD[v.prox.n-1]+' lactancia prevista:</b> '+fmt(p)+' kg corregidos, entre '+fmt(Math.round(p*(1-m)/10)*10)+' y '+fmt(Math.round(p*(1+m)/10)*10)+'.'); }
   var leer='<b>Cómo leer la gráfica:</b> la línea continua es su curva real, reconstruida con su pico y su total.';
   if(hay.esperada) leer+=' La discontinua es lo que esperaba el modelo para esa lactancia.';
   if(hay.prevista) leer+=' La de puntos es su próxima lactancia prevista.';
-  if(hay.esperada||hay.prevista) leer+=' El modelo predice el total, que se reparte día a día con la forma de la curva del hato.';
+  if(hay.esperada||hay.prevista) leer+=' El modelo predice el total, que se reparte día a día con la forma de la curva del hato. La franja es su margen: en la validación, 8 de cada 10 vacas quedaron dentro.';
   if(hay.mediana) leer+=' La discontinua gris es la mediana del hato.';
   nt.push(leer);
   nt.push('La tabla está en producción corregida a 305 días; la gráfica, en kilos reales por día.');
@@ -430,13 +492,57 @@ document.getElementById('t-limpieza').innerHTML='<thead><tr><th>Regla de limpiez
   Object.keys(R).forEach(function(k){ h+='<tr><td>'+k+(k===el?'<span class="ok">elegido</span>':'')+'</td><td class="n">'+fmt(R[k].mae)+' kg</td><td class="n">'+fmt(R[k].deteccion_l1_l2*100)+'%</td></tr>'; });
   h+='<tr><td style="color:var(--tenue)">Usar el promedio</td><td class="n" style="color:var(--tenue)">'+fmt(D.modelo.mae_promedio)+' kg</td><td class="n" style="color:var(--tenue)">20%</td></tr>';
   document.getElementById('t-modelo').innerHTML=h+'</tbody>';
-  document.getElementById('n-modelo').textContent='"Anticipa" es la parte de las vacas que terminaron en el 20% más bajo de su 2.ª lactancia y que el modelo ya había señalado desde la 1.ª. Se entrenó con '+fmt(D.resumen.pares)+' pares de lactancias seguidas y '+(D.modelo.forzado?'se usa '+el+' por decisión del equipo.':'se eligió el de menor error.')+' Con pocos datos, XGBoost necesita regularización para no aprenderse los casos de memoria.';
+  document.getElementById('n-modelo').textContent='"Anticipa" es la parte de las vacas que terminaron en el 20% más bajo de su 2.ª lactancia y que el modelo ya había señalado desde la 1.ª. Se entrenó con '+fmt(D.resumen.pares)+' pares de lactancias seguidas y '+(D.modelo.forzado?'se usa '+el+' por decisión del equipo.':'se eligió el de menor error.')+' Con pocos datos, XGBoost necesita regularización para no aprenderse los casos de memoria. Margen de la predicción: ±'+fmt(D.modelo.margen*100)+'%, que contuvo a 8 de cada 10 vacas en la validación.';
   var v='<thead><tr><th>Variable</th><th class="n">Indonesia</th><th class="n">Rep. Checa</th></tr></thead><tbody>';
   D.validacion.tabla.forEach(function(t){ v+='<tr><td>'+t.variable+'</td><td class="n">'+fmt(t.indonesia.mediana)+'</td><td class="n">'+fmt(t.checa.mediana)+'</td></tr>'; });
   document.getElementById('t-valid').innerHTML=v+'</tbody>';
   var L=D.validacion.limites;
   document.getElementById('limites').innerHTML=Object.keys(L).map(function(k){ var d=k.indexOf('%')>0?1:0;
     return '<li><span>'+k+'</span><b>'+fmt(L[k][0],d)+' a '+fmt(L[k][1],d)+'</b></li>'; }).join('');
+})();
+
+// sementales: diferencia de sus hijas contra el promedio, con el intervalo del 90 %
+function graficaToros(cont){
+  var L=D.sementales.lista, W=Math.max(320,Math.round(cont.clientWidth||900)), angosto=W<560;
+  var FILA=26, PT=34, PB=44, PR=angosto?14:22, PL=angosto?Math.round(W*.44):170, H=PT+PB+L.length*FILA;
+  var lim=Math.max.apply(null,L.map(function(s){ return Math.max(-s.bajo,s.alto); }));
+  var paso=angosto?1000:500, M=Math.ceil(lim/paso)*paso;
+  var X=function(v){ return PL+(v+M)/(2*M)*(W-PL-PR); };
+  var h=['<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Diferencia de producción de las hijas de cada semental frente al promedio">'];
+  for(var v=-M; v<=M+1e-9; v+=paso){ var x=X(v);
+    h.push('<line class="'+(v?'rj':'base')+'" x1="'+x+'" x2="'+x+'" y1="'+(PT-4)+'" y2="'+(H-PB)+'"/>');
+    h.push('<text class="ej" x="'+x+'" y="'+(H-PB+18)+'" text-anchor="middle">'+kgFirmado(v)+'</text>'); }
+  h.push('<text class="ej" x="'+(X(0)-8)+'" y="'+(PT-12)+'" text-anchor="end">'+(angosto?'← menos':'← menos leche que el promedio')+'</text>');
+  h.push('<text class="ej" x="'+(X(0)+8)+'" y="'+(PT-12)+'">'+(angosto?'más →':'más leche →')+'</text>');
+  h.push('<text class="ej" x="'+(W-PR)+'" y="'+(H-4)+'" text-anchor="end">kg por lactancia, hijas contra el promedio</text>');
+  L.forEach(function(s,i){ var y=PT+i*FILA+FILA/2, d=distinto(s);
+    h.push('<g class="fila-toro" data-i="'+i+'"><rect x="0" y="'+(y-FILA/2)+'" width="'+W+'" height="'+FILA+'"/>'+
+      '<text class="ej-nom" x="'+(PL-12)+'" y="'+(y+4)+'" text-anchor="end">'+esc(s.semental)+' <tspan class="ej-n">('+s.hijas+')</tspan></text>'+
+      '<line x1="'+X(s.bajo)+'" x2="'+X(s.alto)+'" y1="'+y+'" y2="'+y+'" stroke="var(--l2)" stroke-width="2" stroke-linecap="round"/>'+
+      '<circle cx="'+X(s.kg)+'" cy="'+y+'" r="'+(d?6:5)+'" fill="'+(d?'var(--l3)':'#fff')+'" stroke="'+(d?'#fff':'var(--l3)')+'" stroke-width="2"/></g>'); });
+  h.push('</svg><div class="globo"></div>');
+  cont.innerHTML=h.join('');
+  var svg=cont.querySelector('svg'), gl=cont.querySelector('.globo');
+  cont.querySelectorAll('.fila-toro').forEach(function(g){
+    g.addEventListener('mousemove',function(ev){ var s=L[+g.dataset.i], r=cont.getBoundingClientRect();
+      gl.innerHTML='<div class="g1">'+s.hijas+' hijas</div><div><b>'+esc(s.semental)+'</b>: '+kgFirmado(s.kg)+' kg frente al promedio</div>'+
+        '<div style="color:var(--tenue)">Intervalo del 90%: '+kgFirmado(s.bajo)+' a '+kgFirmado(s.alto)+' kg</div>'+
+        '<div style="color:var(--tenue)">'+(distinto(s)?'Se distingue del promedio':'No se distingue del promedio con estos datos')+'</div>';
+      gl.style.opacity=1; var gw=gl.offsetWidth, px=ev.clientX-r.left;
+      gl.style.left=Math.max(6,Math.min(px+16,r.width-gw-6))+'px'; gl.style.top=(ev.clientY-r.top+14)+'px'; });
+    g.addEventListener('mouseleave',function(){ gl.style.opacity=0; }); });
+}
+(function(){
+  var L=D.sementales.lista, gt=document.getElementById('g-toros'), tt=document.getElementById('t-toros'), b=document.getElementById('alternar-toros');
+  graficaToros(gt);
+  var h='<table><thead><tr><th>Semental</th><th class="n">Hijas</th><th class="n">Frente al promedio, kg</th><th class="n">Intervalo del 90%, kg</th></tr></thead><tbody>';
+  L.forEach(function(s){ h+='<tr><td>'+esc(s.semental)+(distinto(s)?'<span class="ok">se distingue</span>':'')+'</td><td class="n">'+s.hijas+'</td><td class="n">'+kgFirmado(s.kg)+'</td><td class="n">'+kgFirmado(s.bajo)+' a '+kgFirmado(s.alto)+'</td></tr>'; });
+  tt.innerHTML=h+'</tbody></table>';
+  b.addEventListener('click',function(){ var tabla=!tt.classList.contains('ver'); tt.classList.toggle('ver',tabla);
+    gt.style.display=tabla?'none':''; b.textContent=tabla?'Ver la gráfica':'Ver los valores en una tabla'; if(!tabla) graficaToros(gt); });
+  document.getElementById('l-toros').innerHTML=L.filter(distinto).map(function(s){
+    return '<li><span><b>'+esc(s.semental)+'</b></span><span class="kg">'+kgFirmado(s.kg)+' kg</span><span class="det">'+s.hijas+
+      ' hijas. Intervalo del 90%: '+kgFirmado(s.bajo)+' a '+kgFirmado(s.alto)+' kg.</span></li>'; }).join('');
 })();
 
 // descargas en Excel (separador ; y coma decimal)
@@ -448,6 +554,8 @@ function descargar(filas,nombre){
 document.querySelectorAll('[data-exportar]').forEach(function(b){ b.addEventListener('click',function(){
   if(b.dataset.exportar==='vigilancia') descargar([['Arete','Nombre','Semental','Última lactancia','Producción prevista siguiente (kg)','Percentil en su grupo','Motivos']]
     .concat(D.vigilancia.map(function(o){ return [o.vaca,o.nombre,o.semental,o.lact,o.pred,o.percentil,o.motivos.join(' | ')]; })),'vacas_a_vigilar_{{SELLO}}.csv');
+  else if(b.dataset.exportar==='sementales') descargar([['Semental','Hijas','Diferencia contra el promedio (kg)','Intervalo 90%, desde (kg)','Intervalo 90%, hasta (kg)','Se distingue del promedio']]
+    .concat(D.sementales.lista.map(function(s){ return [s.semental,s.hijas,s.kg,s.bajo,s.alto,distinto(s)?'sí':'no']; })),'sementales_{{SELLO}}.csv');
   else descargar([['Arete','Nombre','Semental','Lactancia','Producción (kg)','Esperado (kg)','Puntaje de anomalía','Motivos']]
     .concat(D.anomalias.map(function(o){ return [o.vaca,o.nombre,o.semental,o.lact,o.corr,o.esp,String(o.puntaje).replace('.',','),o.motivos.join(' | ')]; })),'vacas_baja_produccion_{{SELLO}}.csv');
 }); });

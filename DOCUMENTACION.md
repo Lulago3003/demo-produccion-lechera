@@ -20,6 +20,7 @@ Autor: Luis Lasso. Dashboard en vivo: https://lulago3003.github.io/demo-producci
 | `reporte.py` | Genera un reporte PDF de una página con las mismas cifras (opcional). |
 | `modelos/regresion_lineal.json` | Modelo de predicción elegido: intercepto y coeficientes. |
 | `modelos/xgboost.json` | Modelo XGBoost regularizado, en el formato nativo de XGBoost. |
+| `modelos/nivel_semental.json` | Nivel de cada semental, la variable que necesitan los dos modelos (sección 3.2). |
 | `salida/datos_demo.json` | Todo lo que dibuja el dashboard (ver sección 7). |
 | `salida/metricas.json` | Resumen de la limpieza, los modelos y la validación. |
 | `data/indonesia_holstein_lactancias.xlsx` | Datos de entrenamiento (sección 2.1). |
@@ -77,15 +78,15 @@ nombre del archivo); el SHA-256 coincide con el que publica Mendeley.
   and breed of dairy cows in the Czech Republic», Mendeley Data, versión 1, publicado el 18 de
   abril de 2024. https://doi.org/10.17632/6vy2tvv7jn.1
 - **Archivo original:** `Dataset cow performance.xlsx` (SHA-256 `2f2cc5da…33c0`), hoja `Dataset`.
-- **Contenido:** 723 registros de lactancia; según los autores, 659 vacas (Fleckvieh checa, Holstein y cruces), datos de enero
-  a diciembre de 2018.
+- **Contenido:** 723 registros de lactancia; según los autores, 659 vacas (Fleckvieh checa,
+  Holstein y cruces), con datos de enero a diciembre de 2018.
 - **Uso:** no entrena nada; solo sirve para comprobar que los rangos de Indonesia
   son razonables y para fijar límites plausibles con los que revisar los datos de una finca.
 
 ### 2.3 Limpieza
 
-De 2,203 filas quedan **2,178 lactancias válidas de 1,051 vacas**, hijas de 96 sementales. Las
-reglas se aplican en este orden y el dashboard las muestra en «Cómo se calculó»:
+De 2,203 filas quedan **2,178 lactancias válidas de 1,051 vacas**, hijas de 91 sementales
+identificados. Las reglas se aplican en este orden y el dashboard las muestra en «Cómo se calculó»:
 
 | Regla | Filas retiradas |
 |---|---|
@@ -96,6 +97,13 @@ reglas se aplican en este orden y el dashboard las muestra en «Cómo se calcul�
 | Producción corregida menor a 2,000 kg | 0 |
 | Pico fuera de rango (0 o más de 80 kg/día) | 1 |
 | Día del pico imposible (0 o después del fin de la lactancia) | 0 |
+
+**Nombres de semental.** El mismo toro aparece escrito de varias formas. Se unifican solo las que
+difieren en mayúsculas, espacios, puntos o guiones, usando la forma más frecuente: `Bull mix` →
+`Bull Mix`, `K.BigTime` → `K. Big Time` y `K.S.Layne ET` → `K.S Layne ET`. Las que difieren en
+letras (por ejemplo `-ET` contra `XA`) se dejan separadas, porque pueden ser registros distintos.
+No cuentan como sementales identificados `Bull Mix` (semen mezclado), `Holstein Bull` (toro sin
+nombre) ni las vacas sin registro de padre; por eso son 91.
 
 ---
 
@@ -140,6 +148,13 @@ partir de su lactancia actual.
 | `dias_secos` | Días secos |
 | `lact` | Número de lactancia (1 a 3) |
 | `media_hist` | Promedio de su producción corregida en todas sus lactancias hasta la actual |
+| `nivel_semental` | Qué tanto producen las otras hijas de su padre (ver abajo) |
+
+**Nivel del semental.** Es el promedio de las hijas del toro, medido en desviaciones estándar
+frente a las vacas de su misma lactancia, con 10 hijas «promedio» añadidas: un toro con 3 hijas
+queda cerca de 0 y uno con 80 hijas refleja casi por completo a sus hijas. Para que la validación
+sea honesta, en cada partición el nivel se calcula solo con las vacas de entrenamiento, y la vaca
+de cada fila nunca cuenta en el nivel de su propio padre. Código: `nivel_semental()` y `matriz()`.
 
 **Datos de entrenamiento:** cada par de lactancias seguidas de la misma vaca (1.ª→2.ª, 2.ª→3.ª,
 3.ª→4.ª). Son **1,024 pares**.
@@ -159,9 +174,22 @@ con vacas nuevas.
 
 | Modelo | Error medio (MAE) | R² | Anticipa, 1.ª→2.ª |
 |---|---|---|---|
-| Regresión lineal (elegido) | 820 kg | 0.22 | 41% |
-| XGBoost regularizado | 838 kg | 0.20 | 38% |
+| Regresión lineal (elegido) | 813 kg | 0.23 | 44% |
+| XGBoost regularizado | 833 kg | 0.20 | 37% |
 | Usar el promedio del hato (referencia) | 930 kg | — | 20% (azar) |
+
+Sin el nivel del semental, la regresión lineal daba 820 kg y anticipaba el 41%. Para descartar que
+la mejora fuera suerte de cómo se partieron las vacas, se repitió la validación con 5 particiones
+distintas: el semental bajó el error entre 7 y 11 kg en todas. La producción de la madre también se
+probó (solo 140 de los 1,024 pares tienen a la madre en el registro) y no mejoró nada, así que no
+se usa. A XGBoost también se le probó una grilla de 24 combinaciones de ajustes: la mejor quedó en
+828 kg, todavía por encima de la regresión lineal, así que se dejaron los ajustes de arriba.
+
+**Margen de la predicción.** Cada predicción lleva un margen de **±17.2%**: en la validación, 8 de
+cada 10 vacas quedaron dentro de ese porcentaje de lo predicho (conformal partido sobre los errores
+fuera de muestra). Va en porcentaje y no en kilos porque así cubre parejo: 79–81% en vacas de
+producción baja, media y alta, contra 76–83% con un margen fijo en kilos. Por transición: 79% de
+1.ª a 2.ª, 80% de 2.ª a 3.ª y 81% de 3.ª a 4.ª.
 
 «Anticipa» es la parte de las vacas que terminaron en el 20% más bajo de su 2.ª lactancia y que el
 modelo ya había señalado desde la 1.ª.
@@ -176,26 +204,32 @@ python construir_dashboard.py
 ```
 
 Si se fuerza, el dashboard dice «se usa XGBoost regularizado por decisión del equipo» en lugar de
-«se eligió el de menor error». Con los datos actuales, forzar XGBoost deja 116 de las 146 vacas a
-vigilar iguales y marca 62 lactancias anómalas en 59 vacas (59 coinciden con las 64 actuales).
+«se eligió el de menor error». Con los datos actuales, forzar XGBoost deja 118 de las 146 vacas a
+vigilar iguales y marca 63 lactancias anómalas en 59 vacas (60 coinciden con las 64 actuales).
 
 **Modelos guardados.** Después de validar, los dos modelos se entrenan con los 1,024 pares y se
-guardan en `modelos/`. Para usarlos fuera del pipeline, con las variables en el orden de `rasgos`:
+guardan en `modelos/`, junto con el nivel de cada semental calculado con todas sus hijas. Para
+predecir una vaca nueva fuera del pipeline, con las variables en el orden de `rasgos`:
 
 ```python
 import json, numpy as np, xgboost as xgb
 
 lin = json.load(open("modelos/regresion_lineal.json"))
-vaca = {"corregida": 5801, "pico": 24.4, "dias_pico": 56, "duracion": 271,
-        "dias_secos": 69, "lact": 1, "media_hist": 5801}          # vaca 805464, 1.ª lactancia
+nivel = json.load(open("modelos/nivel_semental.json"))["niveles"]
+vaca = {"corregida": 5801, "pico": 24.4, "dias_pico": 56, "duracion": 271, "dias_secos": 69,
+        "lact": 1, "media_hist": 5801,
+        "nivel_semental": nivel.get("Coyne PlanetET", 0)}   # un toro que no esté en la lista vale 0
 
 pred_lineal = lin["intercepto"] + sum(lin["coeficientes"][k] * vaca[k] for k in lin["rasgos"])
 
 modelo = xgb.XGBRegressor()
 modelo.load_model("modelos/xgboost.json")
 pred_xgb = modelo.predict(np.array([[vaca[k] for k in lin["rasgos"]]], dtype=float))[0]
-# pred_lineal ≈ 6,421 kg, pred_xgb ≈ 6,621 kg (corregidos a 305 días, 2.ª lactancia)
+# pred_lineal ≈ 6,343 kg (margen ±17.2%: 5,250 a 7,440), pred_xgb ≈ 6,476 kg,
+# corregidos a 305 días, para su 2.ª lactancia
 ```
+
+En la regresión lineal, cada punto de `nivel_semental` suma unos 515 kg a la predicción.
 
 ### 3.3 Lista de vacas a vigilar
 
@@ -205,7 +239,8 @@ pred_xgb = modelo.predict(np.array([[vaca[k] for k in lin["rasgos"]]], dtype=flo
 3. Se ordena dentro de cada grupo (las que van a 2.ª entre sí, las que van a 3.ª entre sí, etc.).
 4. Las que quedan en el **20% más bajo** de su grupo pasan a la lista: **146 vacas**.
 
-Los motivos de cada vaca (producción prevista, pico y duración frente a la mediana) los escribe
+Los motivos de cada vaca (producción prevista, pico y duración frente a la mediana, y el semental
+cuando sus hijas producen claramente menos que el promedio, como en 37 de las 146) los escribe
 `motivos_vigilancia()` con cifras calculadas, no a mano.
 
 ### 3.4 Anomalías de baja producción: Isolation Forest
@@ -225,7 +260,7 @@ compararse:
   `contamination=0.06` (se espera ~6% de rarezas), `random_state=0`.
 - Isolation Forest marca rarezas en los dos sentidos. Solo se conservan las de **baja**
   producción: por debajo de lo esperado, o por debajo de su grupo si es 1.ª lactancia.
-- Resultado: **64 lactancias en 62 vacas**. Los motivos los escribe `motivos()`.
+- Resultado: **64 lactancias en 61 vacas**. Los motivos los escribe `motivos()`.
 
 Isolation Forest se vuelve a entrenar en cada corrida porque describe a este hato en particular;
 por eso no se guarda en `modelos/`.
@@ -243,6 +278,21 @@ hay que convertir:
 - Lactancias pasadas: `e305 = esperado × s305 / corregida`, con el factor de esa misma lactancia.
 - Próxima lactancia: `p305 = predicción × factor mediano` de la lactancia que viene.
 
+### 3.6 Comparación de sementales
+
+Para cada semental identificado con **10 hijas o más** (23 toros, 729 hijas):
+
+1. A cada lactancia se le resta el promedio de su misma lactancia en todo el hato, en kg corregidos.
+2. Se promedian las lactancias de cada hija, para que una vaca con 4 lactancias no pese el doble
+   que una con 2.
+3. El valor del toro es el promedio de sus hijas, con un intervalo del 90% (t de Student).
+4. Si el intervalo no cruza el cero, el toro «se distingue del promedio». Pasa con 6 de los 23:
+   O.S.Elmer-XA (+1,006 kg), L. Muscadet XA (+628), Brasilia (+302), K. Big Time (−264),
+   Coyne PlanetET (−384) y L.S Titanic (−665).
+
+El titular de la sección compara al mejor y al peor de esos 6: 1,006 − (−665) = 1,671 kg por
+lactancia. Código: `sementales()` en `pipeline.py`.
+
 ---
 
 ## 4. Cómo se obtiene cada gráfica y tabla del dashboard
@@ -256,16 +306,21 @@ Todo lo dibuja `plantilla.html` en el navegador (SVG hecho a mano, sin librería
 | Gráfica principal | Curva típica de cada lactancia, día 1 a 305 | `curvas_mediana["1".."4"]`, `n_curvas` | Se evalúan las 2,176 curvas de Wood del día 1 al 305 y se toma la mediana día a día por número de lactancia (673, 599, 591 y 313 curvas). Picos: 31.5 kg el día 89 (1.ª), 39.6 el día 57 (2.ª), 42.2 el día 67 (3.ª) y 42.1 el día 67 (4.ª). |
 | «Ver los valores en una tabla» | La misma curva en números | `curvas_mediana` | Valores de los días 1, 15, 30, 45, 60, 90, 120 … 305. |
 | Lista «vacas a vigilar» | 146 vacas con motivo | `vigilancia[]` | Sección 3.3. |
-| Lista «produjeron menos de lo esperado» | 62 vacas con motivo | `anomalias[]` | Sección 3.4. |
+| Lista «produjeron menos de lo esperado» | 61 vacas con motivo | `anomalias[]` | Sección 3.4. |
 | Ficha: línea continua | Curva real de cada lactancia de la vaca | `vacas[id].lacts[].w`, `dur` | Fórmula de Wood con sus `[a, b, c]`, del día 1 al último día de ordeño. |
 | Ficha: línea discontinua | Lo que esperaba el modelo para una lactancia pasada | `curvas_mediana[n]`, `lacts[].e305` | Forma de la curva mediana de esa lactancia, escalada para que sus primeros días (los mismos que duró la real, hasta 305) sumen `e305`. Se dibuja en las lactancias anómalas; si la vaca no tiene alertas, en su última lactancia. |
 | Ficha: línea de puntos | Próxima lactancia prevista | `curvas_mediana[prox.n]`, `prox.p305` | Curva mediana de la lactancia que viene, escalada para sumar `p305` en 305 días. Se dibuja en las vacas a vigilar, y en las vacas sin alertas que solo tienen la 1.ª lactancia. |
+| Ficha: franja sombreada | Margen del modelo | `modelo.margen` | La curva esperada o prevista multiplicada por (1 − 0.172) y (1 + 0.172). El tooltip da el rango de cada día. |
 | Ficha: discontinua gris | Mediana del hato | `curvas_mediana[n]` | Solo si la vaca no tiene ninguna línea del modelo. |
+| Ficha: subtítulo | Semental y cuánto producen sus hijas | `sementales.lista` | Si el toro tiene 10 hijas o más: su diferencia en kg, o «como el promedio» si su intervalo cruza el cero. |
 | Ficha: tabla | Producción, esperado, mediana del hato, pico y días por lactancia | `lacts[].corr`, `esp`, `pico`, `dur`; `prox.pred` | La «mediana del hato» es la mediana de la producción corregida de todas las vacas en esa lactancia. La tabla va en producción corregida; la gráfica, en kilos reales. |
-| Ficha: notas | Motivo de cada alerta y cómo leer la gráfica | `vigilancia[].motivos`, `anomalias[].motivos` | Texto armado según qué líneas se dibujaron. |
+| Ficha: notas | Motivo de cada alerta, rango de la próxima lactancia y cómo leer la gráfica | `vigilancia[].motivos`, `anomalias[].motivos`, `prox.pred`, `modelo.margen` | Texto armado según qué líneas se dibujaron. El rango es `pred × (1 ± margen)`, redondeado a 10 kg. |
+| Sección de sementales: titular | «Las hijas del mejor semental dan 1,671 kg más…» | `sementales.lista` | Diferencia entre el mejor y el peor de los que se distinguen del promedio. Lo escribe `construir_dashboard.py`. |
+| Sección de sementales: gráfica | Un punto por toro con su intervalo del 90%, de mayor a menor | `sementales.lista` | Sección 3.6. Punto relleno: se distingue del promedio; hueco: no. Entre paréntesis, sus hijas. Tiene vista en tabla. |
+| Sección de sementales: lista | Los 6 que marcan diferencia | `sementales.lista` | Los que tienen el intervalo entero de un lado del cero. |
 | «Cómo se calculó» | Limpieza, modelos y validación | `resumen.removidos`, `modelo.resultados`, `validacion` | Secciones 2.3 y 3.2. |
 | Validación | Rangos de Indonesia contra República Checa | `validacion.tabla`, `validacion.limites` | Percentiles 10, 50 y 90 de producción e intervalo entre partos; límites plausibles con los percentiles 1 y 99 checos de grasa, proteína, lactosa e intervalo entre partos. |
-| «Descargar lista en Excel» | Las dos listas | `vigilancia[]`, `anomalias[]` | CSV con separador `;` y coma decimal, que Excel en español abre directo. |
+| «Descargar en Excel» | Las dos listas de vacas y la tabla de sementales | `vigilancia[]`, `anomalias[]`, `sementales.lista` | CSV con separador `;` y coma decimal, que Excel en español abre directo. |
 
 ---
 
@@ -321,14 +376,15 @@ columnas de la sección 2.1. Si los nombres son otros, se cambian `HOJAS` y `COL
 
 | Clave | Contenido |
 |---|---|
-| `resumen` | Filas crudas, lactancias válidas, vacas, sementales, curvas reconstruidas, reglas de limpieza con cuántas filas quitó cada una, pares de entrenamiento y lactancias checas. |
+| `resumen` | Filas crudas, lactancias válidas, vacas, sementales identificados, nombres de semental unificados, curvas reconstruidas, reglas de limpieza con cuántas filas quitó cada una, pares de entrenamiento y lactancias checas. |
 | `curvas_mediana` | Por lactancia (`"1"` a `"4"`): 305 valores, kg/día del día 1 al 305. |
 | `n_curvas` | Cuántas curvas entran en cada mediana. |
 | `factor_real_corregida` | Factor mediano kilos reales / corregida por lactancia. |
-| `modelo` | MAE, R² y «anticipa» de cada modelo; `elegido`; `forzado` (true si se eligió con `--modelo`); MAE de la referencia; umbrales. |
+| `modelo` | MAE, R² y «anticipa» de cada modelo; `elegido`; `forzado` (true si se eligió con `--modelo`); `margen` (0.1722 = ±17.2%) y su `cobertura`; `rasgos`; MAE de la referencia; umbrales. |
 | `vigilancia[]` | `vaca`, `nombre`, `semental`, `lact` (última), `pred` (kg corregidos de la siguiente), `percentil`, `motivos`. |
 | `anomalias[]` | `vaca`, `nombre`, `semental`, `lact`, `corr`, `esp`, `puntaje` (más alto = más inusual), `motivos`. |
 | `validacion` | `tabla` de rangos y `limites` plausibles. |
+| `sementales` | `min_hijas`, `intervalo` y `lista[]` con `semental`, `hijas`, `kg` (diferencia contra el promedio), `bajo` y `alto` (intervalo del 90%). |
 | `vacas{arete}` | `nombre`, `semental`, `prox` (`n`, `pred`, `p305`) y `lacts[]` con `n`, `total`, `corr`, `dur`, `pico`, `dpico`, `secos`, `esp`, `e305`, `w` = `[a, b, c]`, `anom`. |
 
 ---
@@ -337,6 +393,9 @@ columnas de la sección 2.1. Si los nombres son otros, se cambian `HOJAS` y `COL
 
 - El dataset trae un registro por lactancia, sin datos diarios, fechas ni clima. Las curvas
   diarias son una reconstrucción y las anomalías solo se ven cuando la lactancia ya terminó.
-- La lista de vigilancia anticipa alrededor del 41% de las vacas que terminan entre las más bajas,
+- La lista de vigilancia anticipa alrededor del 44% de las vacas que terminan entre las más bajas,
   cuando al azar sería el 20%. Sirve para priorizar revisiones, no para diagnosticar.
+- La comparación de sementales es un promedio de sus hijas, no una evaluación genética: no corrige
+  por año, manejo ni alimentación. Si las hijas de un toro se concentraron en un mal año, el toro
+  sale peor de lo que es. Sirve para hacer preguntas, no para descartar un toro.
 - Para alertas a tiempo hacen falta registros diarios o por ordeño, con temperatura y humedad.

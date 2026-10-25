@@ -3,7 +3,21 @@
     "registros_crudos": 2203,
     "lactancias_validas": 2178,
     "vacas": 1051,
-    "sementales": 96,
+    "sementales": 91,
+    "sementales_unificados": [
+      {
+        "antes": "K.S.Layne ET",
+        "queda": "K.S Layne ET"
+      },
+      {
+        "antes": "Bull mix",
+        "queda": "Bull Mix"
+      },
+      {
+        "antes": "K.BigTime",
+        "queda": "K. Big Time"
+      }
+    ],
     "curvas_reconstruidas": 2176,
     "removidos": [
       {
@@ -41,23 +55,35 @@
   "modelo": {
     "resultados": {
       "Regresión lineal": {
-        "mae": 819.6511338526398,
-        "r2": 0.2230286677252511,
-        "deteccion": 0.45213255701501637,
-        "mae_l1_l2": 853.8639019707928,
-        "deteccion_l1_l2": 0.4050632911392405
+        "mae": 812.767024796472,
+        "r2": 0.23154732937636224,
+        "deteccion": 0.44516755095416943,
+        "mae_l1_l2": 839.3412450334301,
+        "deteccion_l1_l2": 0.4430379746835443
       },
       "XGBoost regularizado": {
-        "mae": 838.0275990364181,
-        "r2": 0.1966114684942072,
-        "deteccion": 0.4129942791787276,
-        "mae_l1_l2": 862.1113593298179,
-        "deteccion_l1_l2": 0.379746835443038
+        "mae": 833.2095202835636,
+        "r2": 0.19986285603431853,
+        "deteccion": 0.3840932023572168,
+        "mae_l1_l2": 852.345429870925,
+        "deteccion_l1_l2": 0.3670886075949367
       }
     },
     "elegido": "Regresión lineal",
     "forzado": false,
     "mae_promedio": 930.0384814532362,
+    "margen": 0.1722,
+    "cobertura": 0.8,
+    "rasgos": [
+      "corregida",
+      "pico",
+      "dias_pico",
+      "duracion",
+      "dias_secos",
+      "lact",
+      "media_hist",
+      "nivel_semental"
+    ],
     "cuantil_bajo": 0.2,
     "contaminacion": 0.06
   },
@@ -109,5 +135,172 @@
         700.6799999999998
       ]
     }
+  },
+  "sementales": {
+    "min_hijas": 10,
+    "intervalo": 0.9,
+    "lista": [
+      {
+        "semental": "O.S.Elmer-XA",
+        "hijas": 13,
+        "kg": 1006,
+        "bajo": 536,
+        "alto": 1476
+      },
+      {
+        "semental": "L. Muscadet XA",
+        "hijas": 16,
+        "kg": 628,
+        "bajo": 198,
+        "alto": 1058
+      },
+      {
+        "semental": "M.Z.Merlin.-XA",
+        "hijas": 10,
+        "kg": 462,
+        "bajo": -223,
+        "alto": 1146
+      },
+      {
+        "semental": "S. Gypsy B.",
+        "hijas": 23,
+        "kg": 371,
+        "bajo": -19,
+        "alto": 760
+      },
+      {
+        "semental": "C. Toyjet",
+        "hijas": 17,
+        "kg": 364,
+        "bajo": -43,
+        "alto": 771
+      },
+      {
+        "semental": "Brasilia",
+        "hijas": 27,
+        "kg": 302,
+        "bajo": 52,
+        "alto": 552
+      },
+      {
+        "semental": "MR MUDD - XA",
+        "hijas": 39,
+        "kg": 228,
+        "bajo": -60,
+        "alto": 516
+      },
+      {
+        "semental": "L.Jet Bowser XA",
+        "hijas": 68,
+        "kg": 59,
+        "bajo": -130,
+        "alto": 249
+      },
+      {
+        "semental": "Jenny S.TrumpXA",
+        "hijas": 41,
+        "kg": 39,
+        "bajo": -197,
+        "alto": 275
+      },
+      {
+        "semental": "DILLION",
+        "hijas": 29,
+        "kg": 31,
+        "bajo": -205,
+        "alto": 266
+      },
+      {
+        "semental": "K-M.EpicSave-ET",
+        "hijas": 11,
+        "kg": 17,
+        "bajo": -458,
+        "alto": 491
+      },
+      {
+        "semental": "L.Jet Bowser-ET",
+        "hijas": 56,
+        "kg": 9,
+        "bajo": -260,
+        "alto": 278
+      },
+      {
+        "semental": "Horst MONTNEY",
+        "hijas": 36,
+        "kg": -26,
+        "bajo": -236,
+        "alto": 183
+      },
+      {
+        "semental": "AK 47",
+        "hijas": 125,
+        "kg": -33,
+        "bajo": -170,
+        "alto": 104
+      },
+      {
+        "semental": "Jenny S.TrumpET",
+        "hijas": 30,
+        "kg": -100,
+        "bajo": -346,
+        "alto": 145
+      },
+      {
+        "semental": "C. Starlight",
+        "hijas": 16,
+        "kg": -112,
+        "bajo": -599,
+        "alto": 374
+      },
+      {
+        "semental": "W.EpicIcebergET",
+        "hijas": 10,
+        "kg": -216,
+        "bajo": -877,
+        "alto": 445
+      },
+      {
+        "semental": "K. Big Time",
+        "hijas": 16,
+        "kg": -264,
+        "bajo": -476,
+        "alto": -53
+      },
+      {
+        "semental": "C. Dv. Creeton",
+        "hijas": 26,
+        "kg": -275,
+        "bajo": -559,
+        "alto": 8
+      },
+      {
+        "semental": "Ziggy VS Whisky",
+        "hijas": 16,
+        "kg": -276,
+        "bajo": -629,
+        "alto": 76
+      },
+      {
+        "semental": "Longlife",
+        "hijas": 13,
+        "kg": -341,
+        "bajo": -692,
+        "alto": 9
+      },
+      {
+        "semental": "Coyne PlanetET",
+        "hijas": 79,
+        "kg": -384,
+        "bajo": -545,
+        "alto": -223
+      },
+      {
+        "semental": "L.S Titanic",
+        "hijas": 12,
+        "kg": -665,
+        "bajo": -1014,
+        "alto": -317
+      }
+    ]
   }
 }

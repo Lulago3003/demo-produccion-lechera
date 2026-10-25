@@ -20,6 +20,15 @@ picos = {n: max(x for x in D["curvas_mediana"][str(n)] if x is not None) for n i
 p1, p234 = picos[1], sum(picos[n] for n in (2, 3, 4)) / 3
 titular = (f"Desde la segunda lactancia, el pico de producción sube de {p1:.0f} "
            f"a unos {p234:.0f} kg de leche por día")
+# titular de sementales: entre los que se distinguen del promedio, el de hijas más y menos productoras
+toros = D["sementales"]["lista"]
+distintos = [s for s in toros if s["bajo"] > 0 or s["alto"] < 0]
+mejor, peor = max(distintos, key=lambda s: s["kg"], default=None), min(distintos, key=lambda s: s["kg"], default=None)
+if mejor and peor and mejor["kg"] > 0 > peor["kg"]:
+    titular_toros = (f"Las hijas del mejor semental dan {mejor['kg'] - peor['kg']:,} kg más de leche por lactancia "
+                     f"que las del peor")
+else:
+    titular_toros = f"{len(distintos)} de {len(toros)} sementales marcan diferencia en la leche de sus hijas"
 reemplazos = {
     "{{FECHA}}": fecha,
     "{{VACAS}}": f"{r['vacas']:,}",
@@ -31,6 +40,8 @@ reemplazos = {
     "{{N_VIGILAR}}": str(len(D["vigilancia"])),
     "{{N_ANOM_VACAS}}": str(len({a["vaca"] for a in D["anomalias"]})),
     "{{N_CHECA}}": str(r["lactancias_checas"]),
+    "{{TOROS_TITULAR}}": titular_toros,
+    "{{MIN_HIJAS}}": str(D["sementales"]["min_hijas"]),
     "{{DET_L12}}": f"{100 * m['resultados'][m['elegido']]['deteccion_l1_l2']:.0f}",
     "{{SELLO}}": hoy.strftime("%Y%m%d"),
     "{{DATOS}}": json.dumps(D, ensure_ascii=False, separators=(",", ":")),
