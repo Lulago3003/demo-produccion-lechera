@@ -254,7 +254,9 @@ footer b{color:var(--tinta2)}
 <footer class="ancho">
   <p><b>Datos.</b> Prafangasti Sarah y colaboradores, «Dataset for Performance of Superior Dairy Cattle Sires»,
     Mendeley Data, versión 2 (2024), licencia CC BY 4.0: vacas Holstein de Indonesia nacidas entre 2017 y 2021.
-    Validación con «Dataset cow performance», Mendeley Data, República Checa, 2018.</p>
+    Validación con Marek Vrhel y colaboradores, «Dataset for study: Association between production and reproduction
+    parameters based on parity and breed of dairy cows in the Czech Republic», Mendeley Data, versión 1 (2024),
+    licencia CC BY 4.0: vacas de República Checa, datos de 2018.</p>
   <p><b>Límites de esta demo.</b> El dataset trae un registro por lactancia, sin datos diarios, fechas ni clima: las
     curvas diarias son una reconstrucción, no una medición. La lista de vigilancia anticipa alrededor del {{DET_L12}}%
     de las vacas que terminan entre las más bajas, cuando al azar sería el 20%; sirve para priorizar, no para
@@ -428,7 +430,7 @@ document.getElementById('t-limpieza').innerHTML='<thead><tr><th>Regla de limpiez
   Object.keys(R).forEach(function(k){ h+='<tr><td>'+k+(k===el?'<span class="ok">elegido</span>':'')+'</td><td class="n">'+fmt(R[k].mae)+' kg</td><td class="n">'+fmt(R[k].deteccion_l1_l2*100)+'%</td></tr>'; });
   h+='<tr><td style="color:var(--tenue)">Usar el promedio</td><td class="n" style="color:var(--tenue)">'+fmt(D.modelo.mae_promedio)+' kg</td><td class="n" style="color:var(--tenue)">20%</td></tr>';
   document.getElementById('t-modelo').innerHTML=h+'</tbody>';
-  document.getElementById('n-modelo').textContent='"Anticipa" es la parte de las vacas que terminaron en el 20% más bajo de su 2.ª lactancia y que el modelo ya había señalado desde la 1.ª. Se entrenó con '+fmt(D.resumen.pares)+' pares de lactancias seguidas y se eligió el de menor error. Con pocos datos, XGBoost necesita regularización para no aprenderse los casos de memoria.';
+  document.getElementById('n-modelo').textContent='"Anticipa" es la parte de las vacas que terminaron en el 20% más bajo de su 2.ª lactancia y que el modelo ya había señalado desde la 1.ª. Se entrenó con '+fmt(D.resumen.pares)+' pares de lactancias seguidas y '+(D.modelo.forzado?'se usa '+el+' por decisión del equipo.':'se eligió el de menor error.')+' Con pocos datos, XGBoost necesita regularización para no aprenderse los casos de memoria.';
   var v='<thead><tr><th>Variable</th><th class="n">Indonesia</th><th class="n">Rep. Checa</th></tr></thead><tbody>';
   D.validacion.tabla.forEach(function(t){ v+='<tr><td>'+t.variable+'</td><td class="n">'+fmt(t.indonesia.mediana)+'</td><td class="n">'+fmt(t.checa.mediana)+'</td></tr>'; });
   document.getElementById('t-valid').innerHTML=v+'</tbody>';

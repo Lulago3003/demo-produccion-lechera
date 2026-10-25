@@ -4,6 +4,7 @@ Predicción de la producción por lactancia y detección de vacas con baja produ
 con datos públicos de 1,051 vacas Holstein.
 
 **Dashboard:** https://lulago3003.github.io/demo-produccion-lechera/
+**Documentación completa** (datos, modelos y cómo se obtiene cada gráfica): [DOCUMENTACION.md](DOCUMENTACION.md)
 
 ## Qué hace
 
@@ -15,7 +16,8 @@ con datos públicos de 1,051 vacas Holstein.
    El dataset no trae registros diarios.
 3. **Predice la siguiente lactancia** a partir de la anterior. Compara XGBoost
    regularizado contra regresión lineal con validación cruzada agrupada por vaca y se
-   queda con el de menor error.
+   queda con el de menor error (se puede forzar con `--modelo xgboost`). Los dos modelos
+   entrenados quedan en `modelos/`.
 4. **Dibuja la curva esperada de cada vaca.** El modelo predice el total de la lactancia
    corregido a 305 días; se pasa a kilos reales con el factor de corrección de esa lactancia
    (0.90 en la 1.ª, 1.04 en la 2.ª, 1.10 en la 3.ª y 1.15 en la 4.ª, en mediana) y se reparte
@@ -47,7 +49,8 @@ lactancia y que el modelo ya había señalado desde la 1.ª.
 
 ```bash
 pip install pandas openpyxl scipy scikit-learn xgboost   # en macOS, XGBoost necesita: brew install libomp
-python pipeline.py              # genera salida/datos_demo.json y salida/metricas.json
+python pipeline.py              # genera salida/*.json y modelos/*.json
+python pipeline.py --modelo xgboost   # igual, pero usando XGBoost aunque tenga más error
 python construir_dashboard.py   # genera index.html
 ```
 
@@ -56,4 +59,7 @@ python construir_dashboard.py   # genera index.html
 - Prafangasti Sarah, Didin Supriat Tasrifin, Heni Indrijani y Dedi Ruswandi,
   «Dataset for Performance of Superior Dairy Cattle Sires», Mendeley Data, v2, 2024,
   doi:10.17632/2sm93h8t7y.2 — licencia CC BY 4.0.
-- «Dataset cow performance», Mendeley Data, doi:10.17632/6vy2tvv7jn.1 (República Checa, 2018).
+- Marek Vrhel, Jaromír Ducháček, Matúš Gašparík, Mojmír Vacek, Radim Codl y Jan Pytlík,
+  «Dataset for study: Association between production and reproduction parameters based on parity
+  and breed of dairy cows in the Czech Republic», Mendeley Data, v1, 2024,
+  doi:10.17632/6vy2tvv7jn.1 — licencia CC BY 4.0.

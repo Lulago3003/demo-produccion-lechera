@@ -1,0 +1,23 @@
+{
+  "rasgos": [
+    "corregida",
+    "pico",
+    "dias_pico",
+    "duracion",
+    "dias_secos",
+    "lact",
+    "media_hist"
+  ],
+  "objetivo": "producción corregida a 305 días de la siguiente lactancia (kg)",
+  "intercepto": 2979.2952552202614,
+  "coeficientes": {
+    "corregida": -0.37770468465514445,
+    "pico": 60.40201004228791,
+    "dias_pico": 2.9961808515890227,
+    "duracion": 1.9396473455344794,
+    "dias_secos": 1.75509524525167,
+    "lact": -423.3368717219004,
+    "media_hist": 0.6494463942800419
+  },
+  "pares_de_entrenamiento": 1024
+}

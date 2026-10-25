@@ -10,8 +10,13 @@ Demo de producción lechera por vaca — AIOROS.
   5. Validación de rangos contra el dataset de República Checa
 
 Todas las cifras y los motivos de cada alerta los calcula este código; nada los inventa.
-Salida: salida/datos_demo.json (alimenta el dashboard) y salida/metricas.json.
+Salida: salida/datos_demo.json (alimenta el dashboard), salida/metricas.json y los dos modelos
+entrenados en modelos/.
+
+Uso:  python pipeline.py                    # elige el modelo de menor error en la validación
+      python pipeline.py --modelo xgboost   # fuerza XGBoost (o --modelo lineal)
 """
+import argparse
 import json
 from pathlib import Path
 
@@ -28,7 +33,9 @@ RAIZ = Path(__file__).parent
 IND = RAIZ / "data" / "indonesia_holstein_lactancias.xlsx"
 CHE = RAIZ / "data" / "checa_desempeno_vacas.xlsx"
 SAL = RAIZ / "salida"
+MOD = RAIZ / "modelos"
 SAL.mkdir(exist_ok=True)
+MOD.mkdir(exist_ok=True)
 
 HOJAS = {1: "1st Lactation", 2: "2nd Lactation", 3: "3rd Lactation", 4: "4rd Lactation"}
 COLUMNAS = {"Animal Number": "vaca", "Animal Name": "nombre",
@@ -98,6 +105,7 @@ def curva(a, b, c, dias):
 
 # ───────────────────────────────────────────── 3. predicción de la siguiente lactancia
 RASGOS = ["corregida", "pico", "dias_pico", "duracion", "dias_secos", "lact", "media_hist"]
+MODELOS = {"lineal": "Regresión lineal", "xgboost": "XGBoost regularizado"}
 
 
 def pares_consecutivos(d):
@@ -119,11 +127,11 @@ def deteccion_bajas(y, p):
     return float((bajo & anticipado).sum() / bajo.sum())
 
 
-def evaluar_modelos(pares):
+def evaluar_modelos(pares, forzado=None):
     X, y, grupos = pares[RASGOS].values, pares["objetivo"].values, pares["vaca"].values
     cv = GroupKFold(n_splits=5)                  # la misma vaca nunca está en entrenamiento y prueba
     oof, resultados = {}, {}
-    for nombre, fabrica in [("Regresión lineal", LinearRegression), ("XGBoost regularizado", modelo_xgb)]:
+    for nombre, fabrica in [(MODELOS["lineal"], LinearRegression), (MODELOS["xgboost"], modelo_xgb)]:
         p = np.zeros(len(y))
         for tr, te in cv.split(X, y, grupos):
             p[te] = fabrica().fit(X[tr], y[tr]).predict(X[te])
@@ -137,9 +145,22 @@ def evaluar_modelos(pares):
             "mae_l1_l2": float(np.abs(p[l12] - y[l12]).mean()),
             "deteccion_l1_l2": deteccion_bajas(y[l12], p[l12]),
         }
-    elegido = min(resultados, key=lambda k: resultados[k]["mae"])
+    elegido = MODELOS[forzado] if forzado else min(resultados, key=lambda k: resultados[k]["mae"])
     base = float(np.abs(y.mean() - y).mean())
     return resultados, elegido, oof[elegido], base
+
+
+def entrenar_y_guardar(pares):
+    """Entrena los dos modelos con todos los pares y los guarda en modelos/ para usarlos fuera."""
+    X, y = pares[RASGOS].values, pares["objetivo"].values
+    lineal, arboles = LinearRegression().fit(X, y), modelo_xgb().fit(X, y)
+    (MOD / "regresion_lineal.json").write_text(json.dumps(
+        {"rasgos": RASGOS, "objetivo": "producción corregida a 305 días de la siguiente lactancia (kg)",
+         "intercepto": float(lineal.intercept_),
+         "coeficientes": {k: float(c) for k, c in zip(RASGOS, lineal.coef_)},
+         "pares_de_entrenamiento": int(len(y))}, ensure_ascii=False, indent=2), encoding="utf-8")
+    arboles.save_model(MOD / "xgboost.json")
+    return {MODELOS["lineal"]: lineal, MODELOS["xgboost"]: arboles}
 
 
 # ───────────────────────────────────────────── 4. anomalías
@@ -214,6 +235,11 @@ def validar(d):
 
 # ───────────────────────────────────────────── main
 def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--modelo", choices=["auto", *MODELOS], default="auto",
+                    help="auto: el de menor error en la validación cruzada (por defecto)")
+    forzado = None if (m := ap.parse_args().modelo) == "auto" else m
+
     crudo, d, removidos = cargar_y_limpiar()
     print(f"[1] {len(crudo)} registros -> {len(d)} válidos ({d['vaca'].nunique()} vacas)")
 
@@ -231,15 +257,16 @@ def main():
     print(f"[2] curva reconstruida en {len(params)} de {len(d)} lactancias")
 
     d, pares = pares_consecutivos(d)
-    resultados, elegido, oof, base = evaluar_modelos(pares)
+    resultados, elegido, oof, base = evaluar_modelos(pares, forzado)
     for k, v in resultados.items():
         print(f"[3] {k:22s} MAE {v['mae']:.0f} kg | R2 {v['r2']:.2f} | anticipa {v['deteccion']*100:.0f}% "
               f"| 1ra->2da: MAE {v['mae_l1_l2']:.0f}, anticipa {v['deteccion_l1_l2']*100:.0f}%")
-    print(f"    elegido: {elegido} | referencia (promedio): MAE {base:.0f} kg | {len(pares)} pares")
+    print(f"    elegido: {elegido} ({'forzado' if forzado else 'menor error'}) | referencia (promedio): "
+          f"MAE {base:.0f} kg | {len(pares)} pares")
 
     # lista de vigilancia: siguiente lactancia de cada vaca, con el modelo elegido entrenado con todo
-    final = (modelo_xgb() if elegido.startswith("XGBoost") else LinearRegression()).fit(
-        pares[RASGOS].values, pares["objetivo"].values)
+    final = entrenar_y_guardar(pares)[elegido]
+    print(f"[3] modelos guardados en {MOD.name}/: regresion_lineal.json y xgboost.json")
     ultima = d.loc[d.groupby("vaca")["lact"].idxmax()]
     ultima = ultima[ultima["lact"] < 4].copy()
     ultima["pred_siguiente"] = final.predict(ultima[RASGOS].values)
@@ -301,7 +328,7 @@ def main():
                            for n, c in mediana_curva.items()},
         "n_curvas": {str(n): len(v) for n, v in curvas.items()},
         "factor_real_corregida": {str(int(n)): round(float(k), 4) for n, k in k305.items()},
-        "modelo": {"resultados": resultados, "elegido": elegido, "mae_promedio": base,
+        "modelo": {"resultados": resultados, "elegido": elegido, "forzado": bool(forzado), "mae_promedio": base,
                    "cuantil_bajo": CUANTIL_BAJO, "contaminacion": CONTAMINACION},
         "vigilancia": [{"vaca": str(r["vaca"]), "nombre": r["nombre"], "semental": r["semental"],
                         "lact": int(r["lact"]), "pred": round(r["pred_siguiente"]),
