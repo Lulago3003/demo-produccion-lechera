@@ -7,12 +7,12 @@
       <label class="gamma-field" for="chat-alcance">Consultar<select id="chat-alcance"><option value="hato">Todo el hato histórico</option><option value="vaca">Vaca seleccionada en la ficha</option></select></label>
       <p class="gamma-muted" id="chat-vaca"></p>
       <div class="gamma-chips" aria-label="Preguntas sugeridas">
-        <button type="button" data-pregunta="Resume los resultados del hato.">Resumen del hato</button>
-        <button type="button" data-pregunta="¿Qué vacas conviene vigilar y por qué?">Vacas a vigilar</button>
-        <button type="button" data-pregunta="¿Cuánto dinero representa la brecha de producción?">Valor económico</button>
-        <button type="button" data-pregunta="Compara los sementales y explica los límites.">Comparar sementales</button>
-        <button type="button" data-pregunta="¿Qué muestran los sensores y la producción diaria?">Sensores y alertas</button>
-        <button type="button" data-pregunta="Explica la curva y las alertas de esta vaca.">Vaca seleccionada</button>
+        <button type="button" data-ejemplo="resumen" data-pregunta="Resume los resultados del hato.">Resumen del hato</button>
+        <button type="button" data-ejemplo="vigilancia" data-pregunta="¿Qué vacas conviene vigilar y por qué?">Vacas a vigilar</button>
+        <button type="button" data-ejemplo="economia" data-pregunta="¿Cuánto dinero representa la brecha de producción?">Valor económico</button>
+        <button type="button" data-ejemplo="sementales" data-pregunta="Compara los sementales y explica los límites.">Comparar sementales</button>
+        <button type="button" data-ejemplo="sensores" data-pregunta="¿Qué muestran los sensores y la producción diaria?">Sensores y alertas</button>
+        <button type="button" data-ejemplo="vaca" data-pregunta="Explica la curva y las alertas de esta vaca.">Vaca seleccionada</button>
       </div>
       <label class="gamma-field" for="chat-pregunta">Tu pregunta<textarea id="chat-pregunta" maxlength="1500" required placeholder="Por ejemplo: ¿por qué conviene revisar esta vaca?"></textarea></label>
       <div class="gamma-controls"><button class="boton gamma-primary" id="chat-enviar" type="submit">Preguntar a Gemma</button><button class="enlace" type="button" id="chat-limpiar">Limpiar conversación</button></div>

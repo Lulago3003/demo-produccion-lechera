@@ -217,7 +217,7 @@ def hallazgos_verificados(c):
                              + (f" Para su siguiente lactancia se prevén {f['Siguiente lactancia prevista']:,} kg corregidos."
                                 if "Siguiente lactancia prevista" in f else ""))
         h["historial"] = "La tabla resume las lactancias registradas de esta vaca. Las curvas se reconstruyen con su pico y su total; no son mediciones diarias de sensores."
-        h["pasado"] = ("Hay baja producción histórica señalada en las lactancias " + ", ".join(str(r["lactancia"]) for r in bajas) + ". Es una observación de lactancias ya terminadas, no una alerta clínica actual.") if bajas else "Esta vaca no tiene lactancias históricas marcadas como anómalas en el dataset. Eso no demuestra que su salud actual sea normal."
+        h["pasado"] = ("Hay baja producción histórica señalada en " + ("la lactancia " if len(bajas) == 1 else "las lactancias ") + ", ".join(str(r["lactancia"]) for r in bajas) + ". Es una observación de lactancias ya terminadas, no una alerta clínica actual.") if bajas else "Esta vaca no tiene lactancias históricas marcadas como anómalas en el dataset. Eso no demuestra que su salud actual sea normal."
         # El contexto incluye el estado explícito calculado, nunca inferido por Gemma.
         vigilada = any("Estado de vigilancia" == x["etiqueta"] and x["valor"] == "A vigilar" for x in c["hechos"])
         h["futuro"] = "Esta vaca está en la lista de vigilancia para su próxima lactancia; revisa el rango de la predicción antes de tomar decisiones." if vigilada else "Esta vaca no está en la lista de vigilancia futura. Una anomalía histórica no implica automáticamente que deba aparecer en esa otra lista."

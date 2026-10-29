@@ -2,6 +2,7 @@
 """Genera index.html (autocontenido, sin CDN) desde salida/datos_demo.json y plantilla.html."""
 import base64
 import json
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -38,6 +39,33 @@ fuentes_css = "".join(
     f"@font-face{{font-family:'{fam}';font-style:normal;font-weight:{peso};font-display:swap;"
     f"src:url(data:font/woff2;base64,{base64.b64encode((RAIZ / 'fuentes' / (archivo + '.woff2')).read_bytes()).decode()}) format('woff2')}}\n"
     for fam, peso, archivo in FUENTES)
+
+
+def ejemplos_web():
+    """La versión web no tiene Gemma ni sensores: guarda las mismas cifras, gráficas y hallazgos verificados
+    que calcula el equipo de la finca para cada pregunta sugerida, y el escenario simulado de sensores."""
+    from gamma_asistente import contexto, hallazgos_verificados
+    from gamma_sensores import Registro, simular
+    vaca = str((D["anomalias"] or D["vigilancia"])[0]["vaca"])  # la misma vaca que abre la ficha
+    elegidos = {"resumen": ["panorama", "cuantas", "precision"],
+                "vigilancia": ["primeras", "vigilar", "precision"],
+                "economia": ["monto", "valor", "precio"],
+                "sementales": ["destacados", "comparacion", "genetica"],
+                "sensores": ["estado", "aviso_0", "aviso_1", "proyeccion"],
+                "vaca": ["resumen_vaca", "pasado", "futuro"]}
+    with tempfile.TemporaryDirectory() as tmp:
+        registro = Registro(Path(tmp) / "sensores.sqlite3")
+        sensores = simular(registro, D)
+        chat = {}
+        for tema, claves in elegidos.items():
+            c = contexto(D, registro, {"pregunta": tema, "tema": tema, "vaca": vaca if tema == "vaca" else None,
+                                       "finca": "demo", "simulado": True})
+            h = hallazgos_verificados(c)
+            chat[tema] = {**{k: c[k] for k in ("ambito", "hechos", "grafica", "tabla", "notas", "vaca_consultada")},
+                          "motor": "ejemplo", "respuesta": "\n\n".join(h[k] for k in claves if k in h)}
+    return {"chat": chat, "sensores": sensores}
+
+
 reemplazos = {
     "{{FUENTES}}": fuentes_css,
     "{{FECHA}}": fecha,
@@ -60,6 +88,7 @@ reemplazos = {
     "{{GAMMA_PANELES}}": (RAIZ / "gamma_paneles.html").read_text(encoding="utf-8"),
     "{{GAMMA_CONFIG}}": (RAIZ / "configuracion.json").read_text(encoding="utf-8").replace("<", "\\u003c"),
     "{{GAMMA_JS}}": (RAIZ / "gamma.js").read_text(encoding="utf-8"),
+    "{{GAMMA_EJEMPLOS}}": json.dumps(ejemplos_web(), ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c"),
 }
 html = (RAIZ / "plantilla.html").read_text(encoding="utf-8")
 for k, v in reemplazos.items():
