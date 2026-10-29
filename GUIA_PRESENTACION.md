@@ -7,6 +7,9 @@ Las cifras son las de la versión actual de los datos.
 
 - **Si lo muestras con el link** (https://lulago3003.github.io/demo-produccion-lechera/):
   funciona en cualquier navegador. En las pestañas Gemma y Sensores se ven ejemplos ya calculados.
+- **Si la persona lo va a revisar sola:** mándale https://lulago3003.github.io/demo-produccion-lechera/#recorrido.
+  Se abre un recorrido guiado de 9 pasos que explica cada pestaña. También se abre con el botón
+  "Ver recorrido guiado" de la portada.
 - **Si lo muestras en tu PC con Gemma en vivo:** abre `iniciar.command` unos minutos antes,
   porque Gemma tarda en cargar la primera vez. Espera a que se abra http://127.0.0.1:8765 y a que
   la pestaña Asistente Gemma diga "Gemma 3 de 4B, en este equipo". Si quieres demostrar que
@@ -14,9 +17,12 @@ Las cifras son las de la versión actual de los datos.
 
 ## 1. Hato (2 min): el problema y los datos
 
-**Qué mostrar:** el titular y la gráfica de curvas.
+**Qué mostrar:** primero las tres cifras de arriba (vacas a revisar, dinero y toros), después
+el titular y la gráfica de curvas.
 
 **Qué decir:**
+- "En tres cifras: 146 vacas a revisar antes de su próxima lactancia, unos USD 37,000 en leche que
+  faltó y 3 toros cuyas hijas dan más leche. Cada tarjeta lleva a su detalle."
 - "Son datos públicos de 1,051 vacas Holstein, con 2,178 lactancias válidas. Todavía no son de
   una finca de Panamá; sirven para probar el sistema."
 - "El registro solo trae el total, el pico y el día del pico de cada lactancia. Con eso

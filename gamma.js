@@ -2,6 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id), cfg=GAMMA_CONFIG;
   const usd=n=>new Intl.NumberFormat('es-PA',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n);
+  const usd0=n=>new Intl.NumberFormat('es-PA',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
   const num=(n,d=1)=>Number(n).toLocaleString('es-PA',{maximumFractionDigits:d});
   let precio=cfg.precio_litro, densidad=cfg.densidad_kg_litro, token='', conectado=false, ocupado=false;
   let historial=[], finca='demo', simulado=false, firma='', primerSensor=true, lecturas=null, pendienteAuto=false;
@@ -27,6 +28,8 @@
     filas.sort((a,b)=>b.valor_brecha-a.valor_brecha);eco=filas;
     $('economia-cifras').innerHTML=[['Brecha histórica estimada',usd(filas.reduce((a,b)=>a+b.valor_brecha,0)),'Ingreso bruto del escenario'],['Leche equivalente',num(filas.reduce((a,b)=>a+b.litros_brecha,0),0)+' L','En lactancias anómalas comparables'],['Lactancias comparables',filas.length,sin+' sin base suficiente para monetizar']].map(r=>'<div class="gamma-stat"><dt>'+r[0]+'</dt><dd>'+r[1]+'</dd><small>'+r[2]+'</small></div>').join('');
     $('economia-tabla').innerHTML=tabla(filas.slice(0,12));
+    // la cifra de la portada sigue al precio elegido
+    $('kpi-dinero').textContent=usd0(filas.reduce((a,b)=>a+b.valor_brecha,0));$('kpi-dinero-nota').textContent='en leche que faltó en lactancias pasadas, a '+usd(precio)+' por litro';
     $('precio-fuente').innerHTML=(precio===cfg.precio_litro?'Precio de referencia, '+usd(cfg.precio_litro)+' por litro. ':'Precio personalizado. La referencia es '+usd(cfg.precio_litro)+' por litro. ')+esc(cfg.precio_descripcion)+' <a href="'+esc(cfg.precio_fuente)+'" target="_blank" rel="noopener">Ver la noticia</a>. <a href="'+esc(cfg.densidad_fuente)+'" target="_blank" rel="noopener">Densidad orientativa (FAO)</a>.';
     economiaVaca();
   }

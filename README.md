@@ -12,6 +12,8 @@ registro, el seguimiento de producción diaria y calor, y la entrada de sensores
 Muestra todo el análisis. Gemma y los sensores funcionan en el equipo de la finca, sin internet;
 en la web, las preguntas sugeridas y el escenario simulado de sensores muestran ejemplos calculados
 al generar la página.
+Con https://lulago3003.github.io/demo-produccion-lechera/#recorrido se abre un recorrido guiado
+que explica cada pestaña.
 
 **Versión completa, en el equipo:** abre `iniciar.command` en macOS o ejecuta
 `python3 iniciar.py`; se abre en http://127.0.0.1:8765 con Gemma y los sensores activos.
