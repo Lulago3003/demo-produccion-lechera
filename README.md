@@ -9,12 +9,14 @@ editable), un asistente con **Gemma 3 de 4B** que responde con cifras comprobada
 registro, el seguimiento de producción diaria y calor, y la entrada de sensores por MQTT.
 
 **Versión web:** https://lulago3003.github.io/demo-produccion-lechera/
-Muestra todo el análisis. Gemma y los sensores aparecen apagados porque funcionan en el equipo
-de la finca, sin internet.
+Muestra todo el análisis. Gemma y los sensores funcionan en el equipo de la finca, sin internet;
+en la web, las preguntas sugeridas y el escenario simulado de sensores muestran ejemplos calculados
+al generar la página.
 
 **Versión completa, en el equipo:** abre `iniciar.command` en macOS o ejecuta
 `python3 iniciar.py`; se abre en http://127.0.0.1:8765 con Gemma y los sensores activos.
 
+- [Guía para presentar el dashboard, pestaña por pestaña](GUIA_PRESENTACION.md)
 - [Entrega, uso, alcance y pendientes reales](ENTREGA.md)
 - [API e integración con la aplicación de captura y MQTT](INTEGRACION.md)
 - [Preparación y validación pendiente en Jetson](JETSON.md)

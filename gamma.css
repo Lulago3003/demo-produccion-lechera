@@ -119,6 +119,7 @@ html{scroll-behavior:smooth;scroll-padding-top:64px}
 
 @media(max-width:800px){
   .gamma-split{grid-template-columns:1fr;gap:18px}
+  .gamma-conversacion{max-height:none;overflow:visible;padding-right:0}
   .gamma-stats{grid-template-columns:1fr}
   .gamma-stat,.gamma-stat:first-child{padding:14px 0}
   .gamma-stat + .gamma-stat{border-left:0;border-top:1px solid var(--linea)}

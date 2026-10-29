@@ -90,8 +90,10 @@
   function mostrarRespuesta(p,r){
     const cont=$('chat-respuestas');if(!historial.length)cont.innerHTML='';
     const article=document.createElement('article');article.className='gamma-respuesta';
-    article.innerHTML='<p class="gamma-pregunta">'+esc(p)+'</p><div class="gamma-muted">'+esc(r.ambito)+'. '+(r.motor==='gemma'?(r.modo==='redaccion_verificada'?'Redactó Gemma en '+num(r.segundos,1)+' s; cada cifra se comprobó contra el registro.':'Respondió Gemma en '+num(r.segundos,1)+' s con hallazgos verificados.'):r.motor==='regla'?'Respuesta fija: el registro no tiene datos de salud.':r.motor==='ocupado'?'Gemma estaba ocupado.':r.motor==='verificacion'?'Redacción no verificada.':'Cifras calculadas; Gemma no respondió.')+'</div><div class="gamma-prosa">'+esc(r.respuesta)+'</div>'+ '<dl class="gamma-facts">'+r.hechos.map(h=>'<div><dt>'+esc(h.etiqueta)+'</dt><dd>'+celda(h.valor)+' '+esc(h.unidad)+'</dd></div>').join('')+'</dl>'+dibujarGrafica(r.grafica)+'<details><summary>Datos utilizados y alcance</summary><div class="desliza">'+tabla(r.tabla)+'</div>'+r.notas.map(n=>'<p>'+esc(n)+'</p>').join('')+'</details>';
+    article.innerHTML='<p class="gamma-pregunta">'+esc(p)+'</p><div class="gamma-muted">'+esc(r.ambito)+'. '+(r.motor==='ejemplo'?'Ejemplo de la versión web: cifras, gráfica y hallazgos verificados calculados del registro. En el equipo de la finca, Gemma elige los hallazgos y responde con sus palabras.':r.motor==='gemma'?(r.modo==='redaccion_verificada'?'Redactó Gemma en '+num(r.segundos,1)+' s; cada cifra se comprobó contra el registro.':'Respondió Gemma en '+num(r.segundos,1)+' s con hallazgos verificados.'):r.motor==='regla'?'Respuesta fija: el registro no tiene datos de salud.':r.motor==='ocupado'?'Gemma estaba ocupado.':r.motor==='verificacion'?'Redacción no verificada.':'Cifras calculadas; Gemma no respondió.')+'</div><div class="gamma-prosa">'+esc(r.respuesta)+'</div>'+ '<dl class="gamma-facts">'+r.hechos.map(h=>'<div><dt>'+esc(h.etiqueta)+'</dt><dd>'+celda(h.valor)+' '+esc(h.unidad)+'</dd></div>').join('')+'</dl>'+dibujarGrafica(r.grafica)+'<details><summary>Datos utilizados y alcance</summary><div class="desliza">'+tabla(r.tabla)+'</div>'+r.notas.map(n=>'<p>'+esc(n)+'</p>').join('')+'</details>';
     cont.prepend(article);while(cont.children.length>10)cont.lastElementChild.remove();cont.scrollTop=0;
+    // en el celular la respuesta queda debajo del formulario: se lleva a la vista
+    if(matchMedia('(max-width:800px)').matches)article.scrollIntoView({behavior:'smooth',block:'start'});
   }
   async function preguntar(p,automatico=false){
     if(ocupado)return;
@@ -162,10 +164,19 @@
     document.body.classList.add('gamma-web');
     $('gemma-estado').textContent='Gemma está apagado en la versión web';
     $('sensor-estado').textContent='Sin conexión con el equipo de la finca.';
-    const aviso='<div class="gamma-notice">Esta es la versión web del dashboard. Gemma y los sensores funcionan cuando el sistema corre en el equipo de la finca, una PC o la Jetson, sin internet. Aquí puedes recorrer las pestañas Hato, Vacas, Sementales y Dinero.</div>';
-    $('chat-respuestas').innerHTML=aviso;$('sensor-resumen').innerHTML=aviso;
-    ['chat-enviar','sensor-demo','sensor-aplicar','chat-pregunta'].forEach(id=>{$(id).disabled=true;});
-    document.querySelectorAll('.gamma-chips button').forEach(b=>{b.disabled=true;});
+    $('chat-respuestas').innerHTML='<div class="gamma-notice">Esta es la versión web: Gemma corre en el equipo de la finca, una PC o la Jetson, sin internet. Toca una de las preguntas sugeridas para ver un ejemplo con las cifras, la gráfica y los hallazgos verificados que salen del registro. Para escribir preguntas propias hace falta el equipo de la finca.</div>';
+    $('sensor-resumen').innerHTML='<div class="gamma-notice">Esta es la versión web: los sensores llegan por MQTT al equipo de la finca. Toca <b>Cargar escenario simulado</b> para ver un ejemplo con una caída de producción y una alerta de calor.</div>';
+    ['chat-enviar','chat-pregunta','sensor-aplicar','sensor-finca','sensor-modo','sensor-auto'].forEach(id=>{$(id).disabled=true;});
+    $('chat-alcance').value='hato';$('chat-alcance').disabled=true;
+    document.querySelectorAll('.gamma-chips button').forEach(b=>b.onclick=()=>{
+      const r=GAMMA_EJEMPLOS.chat[b.dataset.ejemplo];if(!r)return;
+      if(r.vaca_consultada)mostrar(r.vaca_consultada);
+      mostrarRespuesta(b.dataset.pregunta,r);historial.push(b.dataset.pregunta);if(historial.length>10)historial.shift();
+    });
+    $('sensor-demo').onclick=()=>{
+      mostrarSensores(GAMMA_EJEMPLOS.sensores);
+      $('sensor-estado').textContent='Escenario simulado de la finca demo, calculado al generar esta página: '+GAMMA_EJEMPLOS.sensores.eventos+' eventos.';
+    };
   }
   async function conectar(){
     if(!/^https?:$/.test(location.protocol)){modoWeb();return;}
