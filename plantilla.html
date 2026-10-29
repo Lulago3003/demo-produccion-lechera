@@ -37,6 +37,17 @@ b,strong{font-weight:600}
 .portada{background:var(--salvia);padding:44px 0 40px}
 .hallazgo{margin:0 0 14px;font:700 50px/1.02 var(--numero);letter-spacing:-.3px;max-width:28ch}
 .bajada{margin:0 0 26px;max-width:66ch;color:var(--tinta2);font-size:15.5px}
+/* lo esencial en tres cifras, antes del hallazgo */
+.resumen-cab{display:flex;justify-content:space-between;align-items:center;gap:12px 20px;flex-wrap:wrap;margin:0 0 14px}
+.resumen-cab h2{margin:0;font:600 13px var(--texto);letter-spacing:.6px;text-transform:uppercase;color:var(--tinta2)}
+.resumen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0 0 44px}
+.cifra{display:flex;flex-direction:column;gap:6px;background:var(--hoja);border:1px solid var(--linea);border-radius:8px;
+  padding:18px 20px;color:var(--tinta);text-decoration:none;text-align:left;font:inherit;cursor:pointer}
+.cifra:hover{border-color:var(--l2)}
+.cifra b{font:700 40px/1 var(--numero);font-variant-numeric:tabular-nums}
+.cifra span{color:var(--tinta2);font-size:15px;line-height:1.4}
+.cifra i{margin-top:auto;padding-top:6px;font:600 14px var(--texto);font-style:normal;color:var(--l3)}
+.registro{scroll-margin-top:72px}
 .pie{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-top:12px}
 .leyenda{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--tinta2)}
 .leyenda span{display:flex;align-items:center;gap:7px}
@@ -174,6 +185,9 @@ footer b{color:var(--tinta2)}
 @media(max-width:920px){
   .ancho{padding:0 20px}
   .hallazgo{font-size:36px}
+  .resumen{grid-template-columns:1fr;gap:10px;margin-bottom:36px}
+  .cifra{padding:14px 16px}
+  .cifra b{font-size:32px}
   .registro,.ficha-cuerpo,.tres,.toros-cuerpo{grid-template-columns:1fr}
   .registro > div,.registro > div + div{padding:0;border-left:0}
   .registro > div + div{margin-top:40px}
@@ -196,6 +210,15 @@ footer b{color:var(--tinta2)}
 
 <section class="portada" data-panel="hato" id="panel-hato" role="tabpanel" aria-labelledby="tab-hato">
   <div class="ancho">
+    <div class="resumen-cab">
+      <h2>Lo que encontró el análisis</h2>
+      <button class="boton gamma-primary" type="button" id="recorrido-abrir">Ver recorrido guiado, 2 minutos</button>
+    </div>
+    <div class="resumen">
+      <button class="cifra" type="button" id="ir-vigilar"><b>{{N_VIGILAR}} vacas</b><span>a revisar antes de su próxima lactancia</span><i>Ver la lista</i></button>
+      <a class="cifra" href="#dinero"><b id="kpi-dinero">{{KPI_DINERO}}</b><span id="kpi-dinero-nota">en leche que faltó en lactancias pasadas, a USD {{PRECIO}} por litro</span><i>Ver el cálculo</i></a>
+      <a class="cifra" href="#toros"><b>{{TOROS_ARRIBA}}</b><span>con hijas que dan más leche que el promedio</span><i>Ver sementales</i></a>
+    </div>
     <h2 class="hallazgo">{{TITULAR}}</h2>
     <p class="bajada">Curva mediana de {{CURVAS}} lactancias de {{VACAS}} vacas Holstein. El registro original no trae
       datos diarios, así que cada curva se reconstruyó a partir del pico, el día del pico y el total de la lactancia.</p>
@@ -587,11 +610,16 @@ PESTANAS.forEach(function(b,i){
     if(j==null) return; e.preventDefault(); var d=PESTANAS[(j+PESTANAS.length)%PESTANAS.length]; location.hash=d.dataset.pestana; d.focus(); });
 });
 window.addEventListener('hashchange',function(){ abrir(location.hash.slice(1)); });
+document.getElementById('ir-vigilar').addEventListener('click',function(){
+  document.querySelector('.registro').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'}); });
 document.getElementById('g-principal')._visto=true;
 abrir(location.hash.slice(1));
 </script>
 <script>var GAMMA_CONFIG={{GAMMA_CONFIG}}, GAMMA_EJEMPLOS={{GAMMA_EJEMPLOS}};
 {{GAMMA_JS}}
+</script>
+<script>
+{{RECORRIDO_JS}}
 </script>
 <script>
 // señales en las pestañas: punto verde si Gemma corre en este equipo y número de alertas activas

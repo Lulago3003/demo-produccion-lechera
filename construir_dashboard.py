@@ -7,6 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from gamma_core import economia
+
 RAIZ = Path(__file__).parent
 D = json.loads((RAIZ / "salida" / "datos_demo.json").read_text(encoding="utf-8"))
 
@@ -32,6 +34,10 @@ if mejor and peor and mejor["kg"] > 0 > peor["kg"]:
                      f"que las del peor")
 else:
     titular_toros = f"{len(distintos)} de {len(toros)} sementales marcan diferencia en la leche de sus hijas"
+# portada: las tres cifras que resumen la demo
+cfg = json.loads((RAIZ / "configuracion.json").read_text(encoding="utf-8"))
+arriba = sum(1 for s in toros if s["bajo"] > 0)
+kpi_dinero = f"USD {economia(D)['brecha_historica_usd']:,.0f}"
 # Barlow incrustada (licencia OFL en fuentes/OFL.txt): el dashboard se ve igual sin internet
 FUENTES = [("Barlow", 400, "Barlow-400"), ("Barlow", 500, "Barlow-500"), ("Barlow", 600, "Barlow-600"),
            ("Barlow Condensed", 600, "BarlowCondensed-600"), ("Barlow Condensed", 700, "BarlowCondensed-700")]
@@ -80,6 +86,9 @@ reemplazos = {
     "{{N_CHECA}}": str(r["lactancias_checas"]),
     "{{TOROS_TITULAR}}": titular_toros,
     "{{MIN_HIJAS}}": str(D["sementales"]["min_hijas"]),
+    "{{KPI_DINERO}}": kpi_dinero,
+    "{{PRECIO}}": f"{cfg['precio_litro']:.2f}",
+    "{{TOROS_ARRIBA}}": f"{arriba} toro{'s' if arriba != 1 else ''}",
     "{{DET_L12}}": f"{100 * m['resultados'][m['elegido']]['deteccion_l1_l2']:.0f}",
     "{{SELLO}}": hoy.strftime("%Y%m%d"),
     "{{DATOS}}": json.dumps(D, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c"),
@@ -88,6 +97,7 @@ reemplazos = {
     "{{GAMMA_PANELES}}": (RAIZ / "gamma_paneles.html").read_text(encoding="utf-8"),
     "{{GAMMA_CONFIG}}": (RAIZ / "configuracion.json").read_text(encoding="utf-8").replace("<", "\\u003c"),
     "{{GAMMA_JS}}": (RAIZ / "gamma.js").read_text(encoding="utf-8"),
+    "{{RECORRIDO_JS}}": (RAIZ / "recorrido.js").read_text(encoding="utf-8"),
     "{{GAMMA_EJEMPLOS}}": json.dumps(ejemplos_web(), ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c"),
 }
 html = (RAIZ / "plantilla.html").read_text(encoding="utf-8")

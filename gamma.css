@@ -134,3 +134,22 @@ html{scroll-behavior:smooth;scroll-padding-top:64px}
   .gamma-controls > .gamma-check{flex-basis:100%}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important}}
+
+/* recorrido guiado */
+.recorrido{position:fixed;right:24px;bottom:24px;z-index:30;width:380px;max-width:calc(100vw - 32px);background:var(--hoja);
+  border:1px solid var(--linea);border-top:4px solid var(--arete);border-radius:10px;padding:16px 20px 18px;
+  box-shadow:0 10px 30px rgba(31,51,38,.18)}
+.recorrido-cab{display:flex;justify-content:space-between;align-items:center;color:var(--tenue);font-size:13px}
+.recorrido-cerrar{background:none;border:0;padding:0 4px;font-size:24px;line-height:1;color:var(--tenue);cursor:pointer}
+.recorrido-cerrar:hover{color:var(--tinta)}
+.recorrido h2{margin:6px 0 6px;font:700 22px/1.15 var(--numero);color:var(--tinta)}
+.recorrido p{margin:0 0 14px;color:var(--tinta2);font-size:15px;line-height:1.55}
+.recorrido-botones{display:flex;justify-content:flex-end;gap:10px}
+.en-foco{outline:3px solid var(--arete);outline-offset:6px;border-radius:8px}
+body.en-recorrido{padding-bottom:280px}
+@media(prefers-reduced-motion:no-preference){.recorrido:not([hidden]){animation:recorrido-entra .2s ease-out}}
+@keyframes recorrido-entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(max-width:800px){
+  .recorrido{left:16px;right:16px;bottom:16px;width:auto;max-width:none;padding:14px 16px 16px}
+  .recorrido p{font-size:14.5px}
+}
