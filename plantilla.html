@@ -3,10 +3,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Producción lechera por vaca, demo de AIOROS</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<meta name="description" content="Producción lechera AIOROS: predicciones, valor económico, asistente Gemma local y seguimiento de sensores.">
 <style>
+{{FUENTES}}
 /* Paleta: potrero (rampa de verdes validada, una por número de lactancia), arete amarillo
    como único acento, rojo y ámbar reservados para alertas. Fondo claro de salvia frío. */
 :root{
@@ -181,6 +180,7 @@ footer b{color:var(--tinta2)}
   .ficha-cab{grid-template-columns:auto 1fr}
   .buscar{grid-column:1/-1;width:100%}
 }
+{{GAMMA_CSS}}
 </style></head><body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <symbol id="i-ojo" viewBox="0 0 16 16"><path d="M8 3.5C4.6 3.5 2 6.4 1 8c1 1.6 3.6 4.5 7 4.5S14 9.6 15 8c-1-1.6-3.6-4.5-7-4.5zm0 7.3A2.8 2.8 0 1 1 8 5.2a2.8 2.8 0 0 1 0 5.6zm0-1.6a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4z" fill="currentColor"/></symbol>
@@ -192,8 +192,9 @@ footer b{color:var(--tinta2)}
   <h1>Producción lechera por vaca</h1>
   <p>Demo de AIOROS, generada el {{FECHA}}</p>
 </header>
+<nav class="gamma-nav" aria-label="Secciones del dashboard"><div class="ancho" role="tablist" aria-label="Secciones"><button role="tab" id="tab-hato" aria-controls="panel-hato" data-pestana="hato" aria-selected="false" tabindex="-1">Hato</button><button role="tab" id="tab-vacas" aria-controls="ficha" data-pestana="vacas" aria-selected="false" tabindex="-1">Vacas</button><button role="tab" id="tab-toros" aria-controls="sementales" data-pestana="toros" aria-selected="false" tabindex="-1">Sementales</button><button role="tab" id="tab-dinero" aria-controls="economia" data-pestana="dinero" aria-selected="false" tabindex="-1">Dinero</button><button role="tab" id="tab-gemma" aria-controls="asistente" data-pestana="gemma" aria-selected="false" tabindex="-1">Asistente Gemma<i class="senal" id="senal-gemma" aria-hidden="true"></i></button><button role="tab" id="tab-sensores" aria-controls="seguimiento" data-pestana="sensores" aria-selected="false" tabindex="-1">Sensores<b class="cuenta" id="cuenta-sensores" hidden></b></button><button role="tab" id="tab-metodo" aria-controls="panel-metodo" data-pestana="metodo" aria-selected="false" tabindex="-1">Cómo se calculó</button></div></nav>
 
-<section class="portada">
+<section class="portada" data-panel="hato" id="panel-hato" role="tabpanel" aria-labelledby="tab-hato">
   <div class="ancho">
     <h2 class="hallazgo">{{TITULAR}}</h2>
     <p class="bajada">Curva mediana de {{CURVAS}} lactancias de {{VACAS}} vacas Holstein. El registro original no trae
@@ -207,7 +208,8 @@ footer b{color:var(--tinta2)}
   </div>
 </section>
 
-<section class="ancho registro">
+{{GAMMA_ECONOMIA}}
+<section class="ancho registro" data-panel="hato">
   <div>
     <h2>{{N_VIGILAR}} vacas a vigilar en su próxima lactancia</h2>
     <p class="intro">Se prevé que su próxima lactancia quede en el 20% más bajo de su grupo. Conviene revisar su
@@ -224,7 +226,7 @@ footer b{color:var(--tinta2)}
   </div>
 </section>
 
-<section class="ancho ficha" id="ficha">
+<section class="ancho ficha" id="ficha" data-panel="vacas" role="tabpanel" aria-labelledby="tab-vacas">
   <div class="ficha-cab">
     <span class="arete grande" id="v-arete"></span>
     <div><h2 id="v-nombre"></h2><p id="v-sub"></p><div id="v-estado"></div></div>
@@ -236,11 +238,11 @@ footer b{color:var(--tinta2)}
   </div>
   <div class="ficha-cuerpo">
     <div><div class="grafica" id="g-vaca"></div><div class="pie"><div class="leyenda" id="ley-vaca"></div></div></div>
-    <div><div class="desliza"><table id="t-vaca"></table></div><div class="nota" id="v-nota"></div></div>
+    <div><div class="desliza"><table id="t-vaca"></table></div><div class="gamma-vaca-eco" id="v-economia"></div><div class="nota" id="v-nota"></div></div>
   </div>
 </section>
 
-<section class="ancho toros" id="sementales">
+<section class="ancho toros" id="sementales" data-panel="toros" role="tabpanel" aria-labelledby="tab-toros">
   <h2>{{TOROS_TITULAR}}</h2>
   <p class="intro">Cuánto producen las hijas de cada semental frente al promedio de las vacas en su misma lactancia,
     en kg corregidos a 305 días. Solo sementales con {{MIN_HIJAS}} hijas o más. La línea es el intervalo del 90%: si
@@ -266,7 +268,8 @@ footer b{color:var(--tinta2)}
   </div>
 </section>
 
-<section class="metodo">
+{{GAMMA_PANELES}}
+<section class="metodo" id="panel-metodo" data-panel="metodo" role="tabpanel" aria-labelledby="tab-metodo">
   <div class="ancho">
     <h2>Cómo se calculó</h2>
     <div class="tres">
@@ -406,7 +409,7 @@ function fila(o,tipo){
 document.getElementById('l-vigilancia').innerHTML=D.vigilancia.map(function(o){ return fila(o,'v'); }).join('');
 document.getElementById('l-anomalias').innerHTML=D.anomalias.map(function(o){ return fila(o,'a'); }).join('');
 document.querySelectorAll('.fila').forEach(function(b){ b.addEventListener('click',function(){
-  mostrar(b.dataset.vaca); document.getElementById('ficha').scrollIntoView({behavior:'smooth',block:'start'}); }); });
+  mostrar(b.dataset.vaca); location.hash='vacas'; }); });
 
 // ficha de la vaca
 var VIG={}, ANO={}; D.vigilancia.forEach(function(o){ VIG[o.vaca]=o; }); D.anomalias.forEach(function(o){ (ANO[o.vaca]=ANO[o.vaca]||[]).push(o); });
@@ -468,6 +471,7 @@ function mostrar(id){
   nt.push(leer);
   nt.push('La tabla está en producción corregida a 305 días; la gráfica, en kilos reales por día.');
   document.getElementById('v-nota').innerHTML=nt.join('<br>');
+  window.dispatchEvent(new CustomEvent('gamma-vaca',{detail:{id:String(id)}}));
 }
 var IDX=Object.keys(D.vacas).map(function(id){ return {id:id, nom:D.vacas[id].nombre||''}; });
 var q=document.getElementById('q'), sug=document.getElementById('sug');
@@ -547,7 +551,7 @@ function graficaToros(cont){
 
 // descargas en Excel (separador ; y coma decimal)
 function descargar(filas,nombre){
-  var csv='﻿'+filas.map(function(r){ return r.map(function(c){ return '"'+String(c==null?'':c).replace(/"/g,'""')+'"'; }).join(';'); }).join('\r\n');
+  var csv='﻿'+filas.map(function(r){ return r.map(function(c){ var v=String(c==null?'':c); if(typeof c==='string'&&/^[=+@\-\t\r]/.test(v)) v="'"+v; return '"'+v.replace(/"/g,'""')+'"'; }).join(';'); }).join('\r\n');
   var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
   a.download=nombre; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500);
 }
@@ -559,5 +563,42 @@ document.querySelectorAll('[data-exportar]').forEach(function(b){ b.addEventList
   else descargar([['Arete','Nombre','Semental','Lactancia','Producción (kg)','Esperado (kg)','Puntaje de anomalía','Motivos']]
     .concat(D.anomalias.map(function(o){ return [o.vaca,o.nombre,o.semental,o.lact,o.corr,o.esp,String(o.puntaje).replace('.',','),o.motivos.join(' | ')]; })),'vacas_baja_produccion_{{SELLO}}.csv');
 }); });
+
+// pestañas: una sección a la vez. El enlace (#vacas, #dinero…) abre la pestaña directamente y el
+// botón atrás del navegador vuelve a la anterior. Las gráficas se dibujan con el ancho real de su
+// contenedor, así que se redibujan al mostrarse; la primera vez que aparecen, con su trazo animado.
+var PESTANAS=Array.from(document.querySelectorAll('[role=tab]')), BARRA=document.querySelector('.gamma-nav');
+function redibujar(){
+  ['g-principal','g-vaca'].forEach(function(id){ var c=document.getElementById(id);
+    if(c._o && c.offsetParent){ grafica(c,Object.assign({},c._o,{animar:!c._visto})); c._visto=true; } });
+  var gt=document.getElementById('g-toros'); if(gt.offsetParent) graficaToros(gt);
+}
+function abrir(nombre){
+  if(!PESTANAS.some(function(b){ return b.dataset.pestana===nombre; })) nombre='hato';
+  PESTANAS.forEach(function(b){ var on=b.dataset.pestana===nombre; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1;
+    if(on) b.scrollIntoView({block:'nearest',inline:'nearest'}); });
+  document.querySelectorAll('[data-panel]').forEach(function(s){ s.hidden=s.dataset.panel!==nombre; });
+  redibujar();
+  if(window.scrollY>BARRA.offsetTop) window.scrollTo(0,BARRA.offsetTop);
+}
+PESTANAS.forEach(function(b,i){
+  b.addEventListener('click',function(){ location.hash=b.dataset.pestana; });
+  b.addEventListener('keydown',function(e){ var j={ArrowRight:i+1,ArrowLeft:i-1,Home:0,End:PESTANAS.length-1}[e.key];
+    if(j==null) return; e.preventDefault(); var d=PESTANAS[(j+PESTANAS.length)%PESTANAS.length]; location.hash=d.dataset.pestana; d.focus(); });
+});
+window.addEventListener('hashchange',function(){ abrir(location.hash.slice(1)); });
+document.getElementById('g-principal')._visto=true;
+abrir(location.hash.slice(1));
+</script>
+<script>var GAMMA_CONFIG={{GAMMA_CONFIG}};
+{{GAMMA_JS}}
+</script>
+<script>
+// señales en las pestañas: punto verde si Gemma corre en este equipo y número de alertas activas
+new MutationObserver(function(){ document.getElementById('senal-gemma').classList.toggle('activa',document.getElementById('gemma-estado').classList.contains('listo')); })
+  .observe(document.getElementById('gemma-estado'),{attributes:true,attributeFilter:['class']});
+new MutationObserver(function(){ var n=document.querySelectorAll('#sensor-resumen .gamma-alert').length, c=document.getElementById('cuenta-sensores');
+  c.hidden=!n; c.textContent=n; c.setAttribute('aria-label',n+' alertas activas'); })
+  .observe(document.getElementById('sensor-resumen'),{childList:true,subtree:true});
 </script>
 </body></html>

@@ -1,0 +1,39 @@
+<section class="gamma-chat-zone" id="asistente" data-panel="gemma" role="tabpanel" aria-labelledby="tab-gemma"><div class="ancho gamma-section">
+  <h2>Conversa con los datos de la finca</h2>
+  <p class="gamma-intro">Pregunta por producción, vacas a revisar, sementales o valor económico. Cada respuesta reúne una explicación, cifras calculadas y una gráfica.</p>
+  <div class="gamma-split">
+    <form class="gamma-box" id="chat-form">
+      <span class="gamma-status" id="gemma-estado" role="status">Comprobando conexión local…</span>
+      <label class="gamma-field" for="chat-alcance">Consultar<select id="chat-alcance"><option value="hato">Todo el hato histórico</option><option value="vaca">Vaca seleccionada en la ficha</option></select></label>
+      <p class="gamma-muted" id="chat-vaca"></p>
+      <div class="gamma-chips" aria-label="Preguntas sugeridas">
+        <button type="button" data-pregunta="Resume los resultados del hato.">Resumen del hato</button>
+        <button type="button" data-pregunta="¿Qué vacas conviene vigilar y por qué?">Vacas a vigilar</button>
+        <button type="button" data-pregunta="¿Cuánto dinero representa la brecha de producción?">Valor económico</button>
+        <button type="button" data-pregunta="Compara los sementales y explica los límites.">Comparar sementales</button>
+        <button type="button" data-pregunta="¿Qué muestran los sensores y la producción diaria?">Sensores y alertas</button>
+        <button type="button" data-pregunta="Explica la curva y las alertas de esta vaca.">Vaca seleccionada</button>
+      </div>
+      <label class="gamma-field" for="chat-pregunta">Tu pregunta<textarea id="chat-pregunta" maxlength="1500" required placeholder="Por ejemplo: ¿por qué conviene revisar esta vaca?"></textarea></label>
+      <div class="gamma-controls"><button class="boton gamma-primary" id="chat-enviar" type="submit">Preguntar a Gemma</button><button class="enlace" type="button" id="chat-limpiar">Limpiar conversación</button></div>
+      <p class="gamma-error" id="chat-error" role="alert"></p>
+      <p class="gamma-muted parrafo">Gemma se ejecuta en este equipo y selecciona los hallazgos que responden a tu pregunta. Cada explicación utiliza textos y cifras verificables del registro; no sustituye una evaluación veterinaria.</p>
+    </form>
+    <div class="gamma-box"><h3>Explicación y evidencia</h3><div class="gamma-conversacion" id="chat-respuestas" aria-live="polite" aria-busy="false"><div class="gamma-empty">La próxima pregunta aparecerá aquí junto con los datos que sustentan la respuesta.<br><br>Puedes cambiar el precio de la leche o seleccionar una vaca antes de preguntar.</div></div></div>
+  </div>
+</div></section>
+<section class="ancho gamma-section" id="seguimiento" data-panel="sensores" role="tabpanel" aria-labelledby="tab-sensores">
+  <h2>Producción diaria, ambiente y avisos</h2>
+  <p class="gamma-intro">Los nuevos registros se evalúan al recibirse y esta vista se actualiza cada tres segundos. El escenario de demostración permite probar todo el recorrido.</p>
+  <div class="gamma-controls">
+    <label for="sensor-finca">Identificador de la finca<input id="sensor-finca" value="demo" maxlength="80" pattern="[A-Za-z0-9_.-]+"></label>
+    <label for="sensor-modo">Origen de los datos<select id="sensor-modo"><option value="false">Registros reales recibidos</option><option value="true">Simulación de demostración</option></select></label>
+    <button class="boton" type="button" id="sensor-aplicar">Consultar finca</button>
+    <button class="boton gamma-primary" type="button" id="sensor-demo">Cargar escenario simulado</button>
+  </div>
+  <p class="gamma-error" id="sensor-error" role="status"></p>
+  <div class="gamma-controls"><label class="gamma-check"><input type="checkbox" id="sensor-auto">Pedir a Gemma una explicación cuando cambien los registros de este ámbito</label></div>
+  <p class="gamma-muted" id="sensor-estado">Conectando con el registro local…</p>
+  <div id="sensor-resumen"><div class="gamma-empty">Aún no hay lecturas cargadas en esta vista.</div></div>
+  <div class="gamma-notice">Las alertas diarias y de calor son reglas exploratorias. La proyección con los primeros 30–60 días es experimental y necesita validarse con una finca real. No se han entrenado ni validado TimesFM o Chronos con estos registros.</div>
+</section>

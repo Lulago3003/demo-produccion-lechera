@@ -3,7 +3,22 @@
 Predicción de la producción por lactancia y detección de vacas con baja producción,
 con datos públicos de 1,051 vacas Holstein.
 
-**Dashboard:** https://lulago3003.github.io/demo-produccion-lechera/
+El dashboard está organizado en pestañas: **Hato, Vacas, Sementales, Dinero, Asistente Gemma,
+Sensores y Cómo se calculó**. Suma el valor económico de la leche (USD 0.45 por litro,
+editable), un asistente con **Gemma 3 de 4B** que responde con cifras comprobadas contra el
+registro, el seguimiento de producción diaria y calor, y la entrada de sensores por MQTT.
+
+**Versión web:** https://lulago3003.github.io/demo-produccion-lechera/
+Muestra todo el análisis. Gemma y los sensores aparecen apagados porque funcionan en el equipo
+de la finca, sin internet.
+
+**Versión completa, en el equipo:** abre `iniciar.command` en macOS o ejecuta
+`python3 iniciar.py`; se abre en http://127.0.0.1:8765 con Gemma y los sensores activos.
+
+- [Entrega, uso, alcance y pendientes reales](ENTREGA.md)
+- [API e integración con la aplicación de captura y MQTT](INTEGRACION.md)
+- [Preparación y validación pendiente en Jetson](JETSON.md)
+
 **Documentación completa** (datos, modelos y cómo se obtiene cada gráfica): [DOCUMENTACION.md](DOCUMENTACION.md)
 
 ## Qué hace
@@ -49,6 +64,15 @@ lactancia y que el modelo ya había señalado desde la 1.ª.
 - Para alertas a tiempo hacen falta registros diarios o por ordeño, con temperatura y humedad.
 
 ## Cómo correrlo
+
+Para usar la aplicación con los modelos ya guardados no hace falta reentrenar:
+
+```bash
+python3 iniciar.py                 # Python 3.11 o posterior
+python3 -m unittest discover -s tests -v
+```
+
+Para regenerar los modelos desde los Excel:
 
 ```bash
 pip install pandas openpyxl scipy scikit-learn xgboost   # en macOS, XGBoost necesita: brew install libomp

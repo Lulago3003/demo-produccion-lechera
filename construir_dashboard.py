@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """Genera index.html (autocontenido, sin CDN) desde salida/datos_demo.json y plantilla.html."""
+import base64
 import json
-from datetime import date
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 RAIZ = Path(__file__).parent
 D = json.loads((RAIZ / "salida" / "datos_demo.json").read_text(encoding="utf-8"))
@@ -10,7 +12,7 @@ D = json.loads((RAIZ / "salida" / "datos_demo.json").read_text(encoding="utf-8")
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
          "septiembre", "octubre", "noviembre", "diciembre"]
-hoy = date.today()
+hoy = datetime.now(ZoneInfo("America/Panama")).date()
 fecha = f"{DIAS[hoy.weekday()]} {hoy.day} de {MESES[hoy.month - 1]} de {hoy.year}"
 
 r, m = D["resumen"], D["modelo"]
@@ -29,7 +31,15 @@ if mejor and peor and mejor["kg"] > 0 > peor["kg"]:
                      f"que las del peor")
 else:
     titular_toros = f"{len(distintos)} de {len(toros)} sementales marcan diferencia en la leche de sus hijas"
+# Barlow incrustada (licencia OFL en fuentes/OFL.txt): el dashboard se ve igual sin internet
+FUENTES = [("Barlow", 400, "Barlow-400"), ("Barlow", 500, "Barlow-500"), ("Barlow", 600, "Barlow-600"),
+           ("Barlow Condensed", 600, "BarlowCondensed-600"), ("Barlow Condensed", 700, "BarlowCondensed-700")]
+fuentes_css = "".join(
+    f"@font-face{{font-family:'{fam}';font-style:normal;font-weight:{peso};font-display:swap;"
+    f"src:url(data:font/woff2;base64,{base64.b64encode((RAIZ / 'fuentes' / (archivo + '.woff2')).read_bytes()).decode()}) format('woff2')}}\n"
+    for fam, peso, archivo in FUENTES)
 reemplazos = {
+    "{{FUENTES}}": fuentes_css,
     "{{FECHA}}": fecha,
     "{{VACAS}}": f"{r['vacas']:,}",
     "{{LACTS}}": f"{r['lactancias_validas']:,}",
@@ -44,7 +54,12 @@ reemplazos = {
     "{{MIN_HIJAS}}": str(D["sementales"]["min_hijas"]),
     "{{DET_L12}}": f"{100 * m['resultados'][m['elegido']]['deteccion_l1_l2']:.0f}",
     "{{SELLO}}": hoy.strftime("%Y%m%d"),
-    "{{DATOS}}": json.dumps(D, ensure_ascii=False, separators=(",", ":")),
+    "{{DATOS}}": json.dumps(D, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c"),
+    "{{GAMMA_CSS}}": (RAIZ / "gamma.css").read_text(encoding="utf-8"),
+    "{{GAMMA_ECONOMIA}}": (RAIZ / "gamma_economia.html").read_text(encoding="utf-8"),
+    "{{GAMMA_PANELES}}": (RAIZ / "gamma_paneles.html").read_text(encoding="utf-8"),
+    "{{GAMMA_CONFIG}}": (RAIZ / "configuracion.json").read_text(encoding="utf-8").replace("<", "\\u003c"),
+    "{{GAMMA_JS}}": (RAIZ / "gamma.js").read_text(encoding="utf-8"),
 }
 html = (RAIZ / "plantilla.html").read_text(encoding="utf-8")
 for k, v in reemplazos.items():

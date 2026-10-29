@@ -1,0 +1,135 @@
+/* Secciones de Gamma (dinero, asistente, seguimiento). Usan los mismos tokens que el resto:
+   Barlow para texto, Barlow Condensed para títulos y cifras, verdes del potrero, radios de 6 px
+   y controles de 42 px de alto para que campos y botones queden en la misma línea. */
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+
+[hidden]{display:none!important}
+
+/* pestañas: barra fija alineada con el borde del contenido; la activa lleva la raya verde */
+.gamma-nav [role=tab]{position:relative;display:inline-flex;align-items:center;gap:7px;background:none;border:0;
+  border-bottom:3px solid transparent;padding:14px 2px 11px;font:600 14.5px var(--texto);color:var(--tinta2);cursor:pointer;white-space:nowrap}
+.gamma-nav [role=tab]:hover{color:var(--l4)}
+.gamma-nav [role=tab][aria-selected=true]{color:var(--tinta);border-bottom-color:var(--l3)}
+.gamma-nav [role=tab]:focus-visible{outline:2px solid var(--l3);outline-offset:-2px;border-radius:4px}
+.senal{width:8px;height:8px;border-radius:50%;background:var(--ref);flex:none}
+.senal.activa{background:var(--l3);box-shadow:0 0 0 3px rgba(44,115,64,.18)}
+.cuenta{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--ano-i);color:#fff;
+  font:700 12px/20px var(--texto);text-align:center}
+@media (prefers-reduced-motion:no-preference){
+  [data-panel]:not([hidden]){animation:entrar .28s cubic-bezier(.3,.7,.2,1)}
+  @keyframes entrar{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+}
+
+/* navegación fija: solo los enlaces, alineados con el borde del contenido */
+.gamma-nav{position:sticky;top:0;z-index:20;background:var(--hoja);border-top:1px solid var(--linea);border-bottom:1px solid var(--linea)}
+.gamma-nav .ancho{display:flex;align-items:center;gap:28px;min-height:50px;overflow-x:auto;scrollbar-width:none}
+.gamma-nav .ancho::-webkit-scrollbar{display:none}
+.gamma-nav a{font:600 14.5px var(--texto);color:var(--tinta2);text-decoration:none;white-space:nowrap;padding:14px 0 12px;border-bottom:2px solid transparent}
+.gamma-nav a:hover{color:var(--l4);border-bottom-color:var(--l1)}
+
+/* texto corrido justificado, con corte de sílabas en español */
+.bajada,.registro p.intro,.toros p.intro,.gamma-intro,.nota,.tres p,footer p,.gamma-prosa,.gamma-notice,
+.gamma-muted.parrafo,.gamma-empty,.ficha-cab p{text-align:justify;-webkit-hyphens:auto;hyphens:auto}
+
+/* secciones */
+.gamma-section{padding-block:46px 50px}
+.gamma-section h2{font:700 27px/1.12 var(--numero);letter-spacing:-.1px;margin:0 0 8px}
+.gamma-section h3{font:700 19px/1.2 var(--numero);margin:0 0 10px}
+.gamma-intro{max-width:70ch;color:var(--tinta2);font-size:14.5px;margin:0 0 20px}
+
+/* controles: etiqueta encima, campo y botones alineados abajo con la misma altura */
+.gamma-controls{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin:18px 0}
+.gamma-controls label,.gamma-field{display:grid;gap:6px;font-size:13px;font-weight:600;color:var(--tinta2)}
+.gamma-section input,.gamma-section select,.gamma-section textarea{background:var(--hoja);border:1.5px solid #B9C4B4;border-radius:6px;
+  color:var(--tinta);padding:9px 12px;font:15px var(--texto);max-width:100%;min-height:42px}
+.gamma-section input:focus,.gamma-section select:focus,.gamma-section textarea:focus{outline:none;border-color:var(--l3)}
+.gamma-section input[type=number]{width:170px;font-variant-numeric:tabular-nums}
+.gamma-section input[type=checkbox]{min-height:auto;width:16px;height:16px;accent-color:var(--l3)}
+.gamma-section textarea{width:100%;resize:vertical;min-height:96px;line-height:1.5}
+.gamma-controls .boton{min-height:42px;padding:0 16px}
+.gamma-controls .enlace{min-height:42px}
+.gamma-primary{background:var(--l4);color:#fff;border-color:var(--l4)}
+.gamma-primary:hover{background:var(--l3);border-color:var(--l3)}
+.gamma-section button:disabled{opacity:.55;cursor:wait}
+.gamma-web .gamma-section button:disabled,.gamma-web .gamma-section textarea:disabled{cursor:not-allowed}
+.gamma-error{color:var(--ano);font-size:14px;margin:0;min-height:0}
+.gamma-error:empty{display:none}
+.gamma-check{display:flex!important;align-items:center;gap:9px!important;font-weight:500!important;color:var(--tinta)!important}
+
+/* cifras del valor económico: una fila con separadores, sin tarjetas */
+.gamma-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:26px 0 20px;border-top:1.5px solid var(--linea);border-bottom:1px solid var(--linea)}
+.gamma-stat{padding:16px 22px 18px;min-width:0}
+.gamma-stat:first-child{padding-left:0}
+.gamma-stat + .gamma-stat{border-left:1px solid var(--linea)}
+.gamma-stat dt{color:var(--tinta2);font-size:13.5px;font-weight:600}
+.gamma-stat dd{margin:6px 0 4px;font:700 38px/1.05 var(--numero);font-variant-numeric:lining-nums}
+.gamma-stat small{display:block;font-size:12.5px;color:var(--tenue);line-height:1.45}
+
+/* avisos: una regla a la izquierda; ámbar solo para datos simulados */
+.gamma-notice{border-left:3px solid var(--l1);padding:4px 0 4px 14px;color:var(--tinta2);font-size:13.5px;line-height:1.6;margin:16px 0;max-width:95ch}
+.gamma-notice.simulado{max-width:none;border-left-color:var(--vig-i);background:var(--vig-bg);color:var(--vig);padding:10px 14px;border-radius:0 6px 6px 0}
+.gamma-muted{font-size:12.5px;color:var(--tenue);line-height:1.55}
+.gamma-section details{font-size:13.5px;margin:14px 0 0}
+.gamma-section summary{cursor:pointer;color:var(--l3);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.gamma-section td{white-space:normal;min-width:80px;overflow-wrap:anywhere}
+.gamma-section th{position:static;white-space:nowrap}
+
+/* asistente */
+.gamma-chat-zone{background:var(--salvia)}
+.gamma-split{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr);gap:28px;align-items:start;margin-top:22px}
+.gamma-box{border:1px solid var(--linea);border-radius:6px;padding:22px 24px;min-width:0;background:var(--hoja)}
+.gamma-box > h3:first-child{padding-bottom:10px;border-bottom:1.5px solid var(--linea)}
+.gamma-chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 20px}
+.gamma-chips button{border:1.5px solid #CFD8CA;border-radius:6px;padding:7px 12px;font:500 13.5px var(--texto);color:var(--tinta);background:var(--hoja);cursor:pointer;text-align:left}
+.gamma-chips button:hover{border-color:var(--l3);color:var(--l4)}
+.gamma-status{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--tinta2);background:var(--salvia);padding:4px 10px;border-radius:5px;margin-bottom:14px}
+.gamma-status::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--ref)}
+.gamma-status.listo::before{background:var(--l3)}
+.gamma-status.procesando::before{background:var(--vig-i);animation:gamma-pulso 1s infinite}
+@keyframes gamma-pulso{50%{opacity:.3}}
+.gamma-conversacion{max-height:930px;overflow-y:auto;scrollbar-gutter:stable;padding:4px 8px 2px 0}
+.gamma-respuesta{border-bottom:1px solid var(--linea);padding:0 0 22px;margin-bottom:24px}
+.gamma-respuesta:last-child{border-bottom:0;margin-bottom:0}
+.gamma-pregunta{font-weight:600;margin:0 0 6px;padding:9px 13px;background:var(--salvia);border-radius:6px}
+.gamma-prosa{white-space:pre-wrap;font-size:15px;line-height:1.65;margin:12px 0}
+.gamma-facts{display:grid;grid-template-columns:repeat(2,1fr);gap:0 18px;margin:16px 0}
+.gamma-facts div{padding:9px 0;border-top:1px solid var(--linea);min-width:0}
+.gamma-facts dt{font-size:12.5px;color:var(--tinta2)}
+.gamma-facts dd{font:700 21px/1.2 var(--numero);margin:3px 0 0;overflow-wrap:anywhere}
+.gamma-chart{margin:18px 0;min-width:0}
+.gamma-chart svg{width:100%;height:auto;display:block}
+.gamma-chart p{font-size:13px;font-weight:600;color:var(--tinta2);margin:0 0 8px}
+.gamma-bars{display:grid;gap:7px}
+.gamma-bar{display:grid;grid-template-columns:minmax(96px,1fr) 2fr 64px;gap:12px;align-items:center;font-size:12.5px}
+.gamma-bar span:first-child{overflow-wrap:anywhere;text-align:right}
+.gamma-bar-track{position:relative;height:12px;background:var(--rejilla);border-radius:2px}
+.gamma-bar-track i{position:absolute;height:100%;background:var(--l3);border-radius:2px}
+.gamma-bar b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.gamma-chart-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--tinta2);margin-top:6px}
+.gamma-chart-legend i{display:inline-block;width:16px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.gamma-empty{padding:18px 20px;color:var(--tinta2);background:var(--salvia);border-radius:6px;line-height:1.65;font-size:14px}
+.gamma-chat-zone .gamma-empty{background:#F6F8F3}
+
+/* ficha de la vaca y seguimiento */
+.gamma-vaca-eco{border-top:1.5px solid var(--linea);padding:12px 0 0;margin-top:16px;font-size:13.5px;line-height:1.6;color:var(--tinta2)}
+.gamma-vaca-eco b{color:var(--tinta)}
+.gamma-alert{border-left:3px solid var(--ano-i);padding:10px 14px;background:var(--ano-bg);border-radius:0 6px 6px 0;margin:10px 0;font-size:14px;color:var(--ano)}
+.gamma-alert b{color:var(--ano)}
+.gamma-sensor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:16px}
+
+@media(max-width:800px){
+  .gamma-split{grid-template-columns:1fr;gap:18px}
+  .gamma-stats{grid-template-columns:1fr}
+  .gamma-stat,.gamma-stat:first-child{padding:14px 0}
+  .gamma-stat + .gamma-stat{border-left:0;border-top:1px solid var(--linea)}
+  .gamma-stat dd{font-size:32px}
+  .gamma-nav .ancho{gap:22px}
+  .gamma-sensor-grid{grid-template-columns:1fr}
+  .gamma-box{padding:18px}
+  .gamma-facts{grid-template-columns:1fr}
+  .gamma-controls > label,.gamma-controls > .boton{flex:1 1 100%}
+  .gamma-controls > .boton{justify-content:center}
+  .gamma-controls input,.gamma-controls select,.gamma-section input[type=number]{width:100%}
+  .gamma-controls > .gamma-check{flex-basis:100%}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important}}

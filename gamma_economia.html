@@ -1,0 +1,17 @@
+<section class="ancho gamma-section" id="economia" data-panel="dinero" role="tabpanel" aria-labelledby="tab-dinero">
+  <h2>Cuánto dinero representa la leche que faltó</h2>
+  <p class="gamma-intro">Los kilos que una vaca produjo por debajo de lo esperado se pasan a litros y a dólares. Cambia el precio por el que recibe la finca y las cifras se recalculan al instante.</p>
+  <div class="gamma-controls">
+    <label for="precio-leche">Precio que recibe la finca (USD por litro)<input id="precio-leche" type="number" min="0" max="10" step="0.01" value="0.45"></label>
+    <label for="densidad-leche">Densidad de la leche (kg por litro)<input id="densidad-leche" type="number" min="1" max="1.1" step="0.001" value="1.030"></label>
+    <button type="button" class="boton" id="restaurar-precio">Restaurar referencia</button>
+    <button type="button" class="boton" id="exportar-economia">Descargar cálculo en Excel</button>
+  </div>
+  <p class="gamma-error" id="economia-error" role="status"></p>
+  <p class="gamma-muted" id="precio-fuente"></p>
+  <dl class="gamma-stats" id="economia-cifras" aria-live="polite"></dl>
+  <div class="gamma-notice">Escenario de <b>ingreso bruto</b> sobre lactancias históricas comparables. No equivale a ganancia, pérdida demostrada ni total anual. Los kilos corregidos se convierten primero a kilos reales estimados, y después a litros.</div>
+  <details><summary>Ver las mayores diferencias y cómo se calculan</summary><div class="desliza" id="economia-tabla"></div>
+    <p class="nota">Litros = kg reales ÷ densidad. Valor = litros × precio. Se comparan los mismos días, hasta un máximo de 305. Se excluyen las lactancias sin curva o predicción comparable. La densidad es un supuesto editable; los datos de producción proceden de Indonesia.</p>
+  </details>
+</section>

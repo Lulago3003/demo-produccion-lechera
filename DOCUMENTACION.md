@@ -7,6 +7,12 @@ el código las recalcula todas.
 
 Autor: Luis Lasso. Dashboard en vivo: https://lulago3003.github.io/demo-produccion-lechera/
 
+**Actualización local del 29 de octubre de 2026:** el dashboard incluye valor económico,
+Gemma 3 de 4B y seguimiento de sensores. La arquitectura del pipeline descrita abajo
+se conserva. Consultar [ENTREGA.md](ENTREGA.md) para la ampliación,
+[INTEGRACION.md](INTEGRACION.md) para la API/MQTT y [JETSON.md](JETSON.md) para el destino
+de hardware. La ampliación no está publicada aún en el enlace anterior.
+
 ---
 
 ## 1. Qué hay en la carpeta
@@ -326,9 +332,11 @@ Todo lo dibuja `plantilla.html` en el navegador (SVG hecho a mano, sin librería
 
 ## 5. Cómo publicarlo en la web de AIOROS
 
-`index.html` funciona solo: no necesita servidor, base de datos ni librerías. Lo único externo es
-la tipografía Barlow de Google Fonts; si no carga, el navegador usa su letra sin serifa por
-defecto y todo sigue funcionando. Pesa unos 520 KB y se adapta desde 320 px de ancho.
+`index.html` conserva por sí solo el análisis histórico y el valor económico: no necesita
+servidor ni librerías para esas funciones. Lleva la tipografía Barlow incrustada
+(licencia OFL, `fuentes/OFL.txt`), así que se ve igual sin internet. Pesa unos 665 KB y mantiene el diseño adaptable. El chat Gemma y el registro
+de sensores necesitan `servidor.py`, Ollama y almacenamiento local; publicar solo el HTML
+no publica el backend. Ver `ENTREGA.md` antes de integrar esas funciones en la web de AIOROS.
 
 **Opción A, como página propia (recomendada).** La web de AIOROS está en Firebase Hosting con
 `"public": "."` y `"cleanUrls": true`. Basta con copiar el archivo así:
@@ -399,3 +407,32 @@ columnas de la sección 2.1. Si los nombres son otros, se cambian `HOJAS` y `COL
   por año, manejo ni alimentación. Si las hijas de un toro se concentraron en un mal año, el toro
   sale peor de lo que es. Sirve para hacer preguntas, no para descartar un toro.
 - Para alertas a tiempo hacen falta registros diarios o por ordeño, con temperatura y humedad.
+
+## 9. Ampliación local: cálculos, Gemma y sensores
+
+La nueva capa mantiene el pipeline y los modelos originales sin reentrenarlos:
+
+```text
+Modelos + salida/datos_demo.json → gamma_core.py → hechos, economía y predicción
+Captura / MQTT → gamma_sensores.py → SQLite → reglas de caída, THI y proyección experimental
+Pregunta + contexto → gamma_asistente.py → Gemma selecciona hallazgos verificados
+Servidor local → HTML → explicación, cifras y gráficas
+```
+
+`gamma.css`, `gamma.js`, `gamma_economia.html` y `gamma_paneles.html` se incrustan al generar
+`index.html`. Editar esas fuentes y `plantilla.html`, y ejecutar `construir_dashboard.py`;
+no editar directamente el HTML generado.
+
+`configuracion.json` contiene los supuestos y las fuentes. El precio y la densidad que se
+cambian en la interfaz se guardan en ese navegador y se envían explícitamente al chat.
+Los sensores guardan sus datos normalizados y el dato original; la predicción de una
+lactancia cerrada conserva el escenario económico del evento con el que se recibió.
+
+La carpeta `.local/` contiene modelos descargados de Ollama, token, bases SQLite y logs;
+`.runtime/` contiene ejecutables específicos del equipo. Ambas están excluidas de Git.
+Las credenciales MQTT se suministran por variables de entorno; `.env` también está excluido.
+
+Las nuevas alertas son reglas exploratorias. La proyección temprana usa una curva del hato
+escalada: no se atribuyen sus resultados a TimesFM/Chronos ni se publica precisión de campo.
+La selección de hallazgos de Gemma evita redacción factual libre, pero no garantiza que
+siempre elija la explicación más pertinente. Las cifras y el alcance permanecen visibles.

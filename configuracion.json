@@ -1,0 +1,14 @@
+{
+  "precio_litro": 0.45,
+  "densidad_kg_litro": 1.03,
+  "moneda": "USD",
+  "precio_descripcion": "Leche grado C en Los Santos y Herrera: las acopiadoras bajaron el pago de 48–50 a 45 centavos por litro (Panamá América, 22 de julio de 2026). Cámbialo por el precio del contrato de la finca.",
+  "precio_fecha": "2026-07-22",
+  "precio_consultado": "2026-10-29",
+  "precio_fuente": "https://www.panamaamerica.com.pa/provincias/rios-secos-en-pleno-julio-sequia-y-recorte-al-precio-de-la-leche-asfixian-al-sector",
+  "densidad_fuente": "https://www.fao.org/4/y3548e/y3548e06.htm",
+  "thi_umbral": 68,
+  "thi_fuente": "https://dairy.extension.wisc.edu/articles/heat-abatement-investment-scouter-a-new-decision-support-tool-for-dairy-heat-stress-management/",
+  "caida_diaria_umbral": 0.2,
+  "caida_dias_consecutivos": 2
+}
