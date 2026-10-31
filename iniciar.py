@@ -17,11 +17,32 @@ import webbrowser
 RAIZ = Path(__file__).resolve().parent
 VERSION_OLLAMA = "0.40.13"
 SHA_MAC = "bae29252232b9e1358cf5801a7d65a07442af18fb5467cb68c7fc3711f59c511"
+# Pesos de Gemma 3 de 4B (Q4_K_M) con los que se probó la demo; ver modelos/GEMMA.md
+GEMMA_PESOS = "sha256:f06e91e18fc74295d0c781bf91622508c75655e2c18ed869d52447ffe1e667e1"
 
 
 def get(url):
     with urlopen(url, timeout=3) as r:
         return json.load(r)
+
+
+def revisar_gemma(env):
+    """Avisa si los pesos descargados no son los mismos con los que se probó la demo. No bloquea:
+    otra versión de gemma3:4b también funciona, pero sus respuestas pueden variar."""
+    if env["GEMMA_MODEL"] != "gemma3:4b":
+        return None
+    manifiesto = Path(env["OLLAMA_MODELS"]) / "manifests" / "registry.ollama.ai" / "library" / "gemma3" / "4b"
+    try:
+        capas = json.loads(manifiesto.read_text())["layers"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    pesos = next((c.get("digest") for c in capas if str(c.get("mediaType", "")).endswith(".model")), None)
+    if pesos == GEMMA_PESOS:
+        print(f"Gemma: mismos pesos con los que se probó la demo ({pesos[7:19]}).", flush=True)
+        return True
+    print(f"Aviso: los pesos de Gemma ({(pesos or 'desconocidos')[:19]}) no son los de la demo ({GEMMA_PESOS[:19]}). "
+          "Funciona igual, pero las respuestas pueden variar. Ver modelos/GEMMA.md.", flush=True)
+    return False
 
 
 def esperar(url, proceso, segundos=30):
@@ -93,6 +114,7 @@ def main():
         if not any(m.get("name") == env["GEMMA_MODEL"] for m in modelos.get("models", [])):
             print("Descargando Gemma (aproximadamente 3,4 GB; después funciona sin internet)…", flush=True)
             subprocess.run([ollama, "pull", env["GEMMA_MODEL"]], env=env, check=True)
+        revisar_gemma(env)
         subprocess.run([sys.executable, "construir_dashboard.py"], check=True)
         url = env["GAMMA_API_URL"]
         try:

@@ -22,6 +22,7 @@ que explica cada pestaña.
 - [Entrega, uso, alcance y pendientes reales](ENTREGA.md)
 - [API e integración con la aplicación de captura y MQTT](INTEGRACION.md)
 - [Preparación y validación pendiente en Jetson](JETSON.md)
+- [Gemma 3 de 4B: qué es, que no lo entrenamos y dónde están sus pesos](modelos/GEMMA.md)
 
 **Documentación completa** (datos, modelos y cómo se obtiene cada gráfica): [DOCUMENTACION.md](DOCUMENTACION.md)
 
