@@ -42,14 +42,31 @@ En el equipo de desarrollo están en `.local/ollama/`, que no se sube a Git.
   en Hugging Face, sin comprimir. Pide aceptar la licencia.
 - **En la Jetson:** ver `JETSON.md`.
 
-## Por qué los pesos no están en GitHub
+## Copia de los pesos en GitHub
 
-GitHub no acepta archivos de más de 100 MB dentro de un repositorio, y los pesos ocupan 2.5 GB
-en un solo archivo. Los adjuntos de una versión publicada (*release*) llegan a 2 GB por
-archivo, así que tampoco caben sin partirlos.
+Los pesos están en la versión publicada
+[`gemma3-4b-q4km`](https://github.com/aioros-tech/AIOROS-Gamma-LuisLasso/releases/tag/gemma3-4b-q4km)
+del repositorio de AIOROS, listos para usar sin internet. Sirven, por ejemplo, para instalar
+una Jetson sin conexión.
 
-Además, son idénticos a los que publica Google: descargarlos de la fuente oficial y comprobar
-la huella da exactamente el mismo modelo. Si AIOROS quiere guardar una copia propia, por
-ejemplo para instalar Jetsons sin internet, se puede dejar en una carpeta compartida de Google
-Drive, en su nube o en un repositorio privado de Hugging Face. Al redistribuirla hay que
-incluir la licencia de Gemma.
+GitHub no acepta archivos de más de 100 MB dentro del repositorio, y los adjuntos de una
+versión publicada llegan a 2 GB por archivo. Por eso el ZIP de 3.35 GB va en dos partes:
+
+| Parte | Bytes |
+|---|---|
+| `Gemma3-4B-Q4KM-AIOROS.zip.001` | 1,782,579,200 |
+| `Gemma3-4B-Q4KM-AIOROS.zip.002` | 1,567,717,425 |
+
+Se unen así:
+
+- **Mac o Linux:** `cat Gemma3-4B-Q4KM-AIOROS.zip.001 Gemma3-4B-Q4KM-AIOROS.zip.002 > Gemma3-4B-Q4KM-AIOROS.zip`
+- **Windows:** se abre la parte `.001` con 7-Zip, o en la consola:
+  `copy /b Gemma3-4B-Q4KM-AIOROS.zip.001+Gemma3-4B-Q4KM-AIOROS.zip.002 Gemma3-4B-Q4KM-AIOROS.zip`
+
+La huella SHA-256 del ZIP unido es
+`37bf74b306599a5a0714b6c33bf8793713690aca02b4a473305e065ecfce24ac`. Adentro van la carpeta
+`ollama` (pesos y ficha para Ollama), `LEEME.txt` con los pasos y `LICENCIA_GEMMA.txt`. Al
+redistribuirlos hay que incluir la licencia de Gemma.
+
+Si el repositorio es privado, la descarga pide iniciar sesión en GitHub con una cuenta que
+tenga acceso.
