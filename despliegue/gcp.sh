@@ -7,7 +7,7 @@
 set -euo pipefail
 
 PROYECTO="${PROYECTO:-$(gcloud config get-value project 2>/dev/null)}"
-ZONA="${ZONA:-us-east1-b}"
+ZONA="${ZONA:-us-central1-a}"
 REGION="${ZONA%-*}"
 VM="${VM:-gamma-gemma}"
 TIPO="${TIPO:-e2-standard-8}"

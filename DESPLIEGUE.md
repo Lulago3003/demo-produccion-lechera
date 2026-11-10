@@ -24,11 +24,11 @@ No toca otras VMs ni servicios del proyecto. Al terminar imprime la dirección c
 ejemplo `https://34-1-2-3.sslip.io` (la IP con guiones; el certificado es de Let's Encrypt). Volver a
 correrlo actualiza el código en la misma VM y conserva los registros.
 
-Opciones, delante del comando: `ZONA=us-central1-a`, `TIPO=n2-standard-8`, `VM=otro-nombre`,
+Opciones, delante del comando: `ZONA=us-east1-b`, `TIPO=n2-standard-8`, `VM=otro-nombre`,
 `GAMMA_DOMINIO=gemma.aioros.tech` (si ese dominio ya apunta a la IP fija),
 `GAMMA_ORIGENES=https://gamma.aioros.tech` (dashboards autorizados, separados por comas).
 
-Para no gastar mientras no se usa: `gcloud compute instances stop gamma-gemma --zone us-east1-b`.
+Para no gastar mientras no se usa: `gcloud compute instances stop gamma-gemma --zone us-central1-a`.
 Con `start` vuelve en un par de minutos, con la misma dirección.
 
 ### Sin Cloud Shell: desde la consola
