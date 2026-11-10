@@ -343,4 +343,72 @@ class DashboardExterno(unittest.TestCase):
             with self.subTest(o=o),self.assertRaises(ValueError):normalizar_origen(o)
 
 
+class ModoServidor(unittest.TestCase):
+    """Gemma en un servidor (Google Cloud, Docker): se puede consultar; guardar registros exige la clave."""
+    CLAVE = 'clave-privada-de-prueba'
+    PANEL = 'https://panel.invalid'
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp=tempfile.TemporaryDirectory()
+        cls.server=crear_servidor(0,Registro(Path(cls.tmp.name)/'srv.db'),origenes=[cls.PANEL],publico=True,clave=cls.CLAVE,
+                                  preguntas_por_minuto=2,preguntas_totales_por_minuto=50)
+        cls.thread=threading.Thread(target=cls.server.serve_forever,daemon=True);cls.thread.start()
+        cls.url=f'http://127.0.0.1:{cls.server.server_port}'
+        with urlopen(Request(cls.url+'/api/sesion',headers={'Host':'gemma.invalid'})) as r:
+            d=json.load(r);cls.lectura=d['token']
+        assert d['modo']=='servidor'
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown();cls.server.server_close();cls.thread.join();cls.tmp.cleanup()
+
+    def post(self,ruta,body,token,**headers):
+        return urlopen(Request(self.url+ruta,data=json.dumps(body).encode(),
+                               headers={'Content-Type':'application/json','X-Gamma-Token':token,**headers}),timeout=5)
+
+    def test_dominio_propio_y_estado(self):
+        with urlopen(Request(self.url+'/api/estado',headers={'Host':'gemma.invalid'})) as r:
+            self.assertEqual(json.load(r)['modo'],'servidor')
+        with self.post('/api/predecir',RASGOS,self.lectura,Host='gemma.invalid',Origin='https://gemma.invalid') as r:
+            self.assertAlmostEqual(json.load(r)['kg_corregidos'],6343.08,places=2)
+
+    def test_sensores_solo_con_clave(self):
+        with self.assertRaises(HTTPError) as ctx:self.post('/api/sensores',diario(id='srv-1'),self.lectura)
+        self.assertEqual(ctx.exception.code,401)
+        with self.post('/api/sensores',diario(id='srv-1'),self.CLAVE) as r:self.assertEqual(r.status,201)
+
+    def test_origen_ajeno_y_panel(self):
+        with self.assertRaises(HTTPError) as ctx:
+            self.post('/api/predecir',RASGOS,self.lectura,Host='gemma.invalid',Origin='https://otro.invalid')
+        self.assertEqual(ctx.exception.code,403)
+        with self.post('/api/predecir',RASGOS,self.lectura,Origin=self.PANEL) as r:
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'],self.PANEL)
+
+    def test_se_puede_insertar_en_el_panel(self):
+        with urlopen(self.url) as r:
+            csp=r.headers['Content-Security-Policy']
+            self.assertIn("frame-ancestors 'self' "+self.PANEL,csp);self.assertIsNone(r.headers['X-Frame-Options'])
+
+    def test_limite_por_minuto(self):
+        codigos=[]
+        for _ in range(3):
+            try:
+                with self.post('/api/simular',{},self.lectura,**{'X-Forwarded-For':'203.0.113.9'}) as r:codigos.append(r.status)
+            except HTTPError as e:codigos.append(e.code)
+        self.assertEqual(codigos,[200,200,429])
+        with self.post('/api/simular',{},self.lectura,**{'X-Forwarded-For':'203.0.113.10'}) as r:self.assertEqual(r.status,200)
+
+    def test_sin_clave_no_recibe_sensores(self):
+        tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup)
+        srv=crear_servidor(0,Registro(Path(tmp.name)/'x.db'),publico=True)
+        t=threading.Thread(target=srv.serve_forever,daemon=True);t.start()
+        self.addCleanup(lambda:(srv.shutdown(),srv.server_close(),t.join()))
+        url=f'http://127.0.0.1:{srv.server_port}'
+        with urlopen(url+'/api/sesion') as r:tok=json.load(r)['token']
+        with self.assertRaises(HTTPError) as ctx:
+            urlopen(Request(url+'/api/sensores',data=json.dumps(diario()).encode(),headers={'Content-Type':'application/json','X-Gamma-Token':tok}))
+        self.assertEqual(ctx.exception.code,403)
+
+
 if __name__=='__main__':unittest.main()

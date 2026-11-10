@@ -10,5 +10,7 @@
   "thi_umbral": 68,
   "thi_fuente": "https://dairy.extension.wisc.edu/articles/heat-abatement-investment-scouter-a-new-decision-support-tool-for-dairy-heat-stress-management/",
   "caida_diaria_umbral": 0.2,
-  "caida_dias_consecutivos": 2
+  "caida_dias_consecutivos": 2,
+  "servidor_gemma": "",
+  "servidor_gemma_descripcion": "Dirección del servidor de Gemma (por ejemplo https://gemma.aioros.tech) cuando este dashboard se publica en otra página. Vacío: usa el servidor que entrega la página."
 }

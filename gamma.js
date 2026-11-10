@@ -4,7 +4,7 @@
   const usd=n=>new Intl.NumberFormat('es-PA',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n);
   const usd0=n=>new Intl.NumberFormat('es-PA',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
   const num=(n,d=1)=>Number(n).toLocaleString('es-PA',{maximumFractionDigits:d});
-  let precio=cfg.precio_litro, densidad=cfg.densidad_kg_litro, token='', conectado=false, ocupado=false, base='';
+  let precio=cfg.precio_litro, densidad=cfg.densidad_kg_litro, token='', conectado=false, ocupado=false, base='', enServidor=false;
   let historial=[], finca='demo', simulado=false, firma='', primerSensor=true, lecturas=null, pendienteAuto=false;
   let seleccion=String($('v-arete').textContent), eco=[];
   try{
@@ -108,7 +108,7 @@
       const r=await api('/api/chat',{pregunta:p,vaca:conVaca?seleccion:null,precio_litro:precio,densidad_kg_litro:densidad,finca,simulado,historial:historial.slice(-3),tema:automatico?'sensores':'auto'});
       if(r.vaca_consultada){mostrar(r.vaca_consultada);$('chat-alcance').value='vaca';}
       mostrarRespuesta(p,r);historial.push(p);if(historial.length>10)historial.shift();
-      $('gemma-estado').className='gamma-status '+(r.motor==='gemma'?'listo':'');$('gemma-estado').textContent=r.motor==='gemma'?'Gemma 3 de 4B, en este equipo':'Consulta terminada; revisa el estado del modelo';
+      $('gemma-estado').className='gamma-status '+(r.motor==='gemma'?'listo':'');$('gemma-estado').textContent=r.motor==='gemma'?'Gemma 3 de 4B, '+(enServidor?'en el servidor':'en este equipo'):'Consulta terminada; revisa el estado del modelo';
       if(!automatico)$('chat-pregunta').value='';
     }catch(e){$('chat-error').textContent=e.name==='TimeoutError'?'La consulta tardó demasiado; vuelve a intentarlo.':e.message;$('gemma-estado').className='gamma-status';$('gemma-estado').textContent='Consulta interrumpida';}
     finally{ocupado=false;$('chat-enviar').disabled=false;$('chat-respuestas').setAttribute('aria-busy','false');}
@@ -195,7 +195,8 @@
     return /^http:\/\/(127\.0\.0\.1|localhost):\d{2,5}$/.test(q)?[q]:[];
   }
   function comoEncender(){
-    const web=/^https?:$/.test(location.protocol),pedido=servidoresPedidos().length>0;
+    const web=/^https?:$/.test(location.protocol),pedido=servidoresPedidos().length>0,fijo=String(cfg.servidor_gemma||'');
+    if(web&&fijo)return '<p><b>No se pudo conectar con el servidor de Gemma ('+esc(fijo)+').</b> Puede estar reiniciándose; vuelve a cargar la página en un minuto.</p>';
     if(!web)return '<details><summary>Encender Gemma</summary><p>En la carpeta del proyecto ejecuta <code>python3 iniciar.py</code> (en Mac, abre <code>iniciar.command</code>). Se abre solo el dashboard con Gemma, normalmente en <code>'+LOCAL+'</code>.</p></details>';
     return '<details'+(pedido?' open':'')+'><summary>Encender Gemma en esta página</summary>'+(pedido?'<p><b>No se encontró a Gemma en este equipo.</b> Revisa que iniciar.py siga abierto y que incluya este <code>--origen</code>.</p>':'')+
       '<p>1. En el equipo donde abres esta página, dentro de la carpeta del proyecto, ejecuta:<br><code>python3 iniciar.py --origen '+esc(location.origin)+'</code></p>'+
@@ -209,13 +210,16 @@
     token=s.token;
     const e=await api('/api/estado',undefined,10000);
     if(e.servicio!=='Gamma')throw new Error('Otro servicio en esa dirección');
-    conectado=true;
+    conectado=true;enServidor=e.modo==='servidor';
     $('gemma-estado').textContent=e.gemma.mensaje;$('gemma-estado').className='gamma-status '+(e.gemma.disponible?'listo':'');
   }
   async function conectar(){
     const candidatos=[];
     if(/^https?:$/.test(location.protocol))candidatos.push('');
-    servidoresPedidos().forEach(c=>{if(c!==location.origin)candidatos.push(c);});
+    // servidor de Gemma fijado en configuracion.json (servidor_gemma) al publicar el dashboard en otra página
+    const fijo=String(cfg.servidor_gemma||'').replace(/\/+$/,'');
+    if(/^https?:\/\/[^/?#]+$/.test(fijo)&&fijo!==location.origin)candidatos.push(fijo);
+    servidoresPedidos().forEach(c=>{if(c!==location.origin&&!candidatos.includes(c))candidatos.push(c);});
     for(const c of candidatos){try{await enlazar(c);break;}catch(e){conectado=false;base='';token='';}}
     if(!conectado){modoWeb();return;}
     await refrescar();

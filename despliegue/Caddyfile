@@ -1,0 +1,5 @@
+# HTTPS automático (Let's Encrypt) para el dominio de Gamma. GAMMA_DOMINIO viene de .env.
+{$GAMMA_DOMINIO} {
+	encode gzip
+	reverse_proxy gamma:8765
+}

@@ -1,0 +1,16 @@
+.git
+.gitignore
+.dockerignore
+.local
+.runtime
+.env
+.claude
+**/__pycache__
+**/*.pyc
+**/.DS_Store
+artifacts
+tests
+data
+pesos
+Dockerfile
+docker-compose.yml

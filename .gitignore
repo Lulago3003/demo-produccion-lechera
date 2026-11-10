@@ -7,3 +7,6 @@ __pycache__/
 .env
 *.sqlite3*
 artifacts/
+
+# Copias de Gemma para el servidor (3.35 GB)
+pesos/*.zip*

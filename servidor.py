@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""Servidor local Gamma. Python estándar; no expone carpetas, modelos ni credenciales."""
+"""Servidor Gamma. Python estándar; no expone carpetas, modelos ni credenciales.
+
+Modo local (por defecto): escucha en 127.0.0.1 para el dashboard de este equipo.
+Modo servidor (--host 0.0.0.0, por ejemplo con Docker): cualquiera que abra el dashboard puede
+preguntar a Gemma, con un límite por minuto; guardar registros de sensores exige GAMMA_CLAVE."""
 import argparse
+from collections import deque
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 import secrets
+import threading
+import time
 from urllib.parse import parse_qs, urlparse
 
 from gamma_core import RAIZ, economia, leer, predecir
@@ -26,9 +33,38 @@ def origenes_del_entorno():
     return [o for o in os.environ.get("GAMMA_ORIGENES", "").split(",") if o.strip()]
 
 
-def crear_servidor(port=8765, registro=None, origenes=()):
-    # Dashboards de otro origen (por ejemplo, el de AIOROS) que pueden usar a Gemma desde el navegador del equipo
+LOCALES = ("127.0.0.1", "localhost", "::1")
+
+
+class Limite:
+    """Preguntas por minuto: por cliente y en total, para que nadie acapare a Gemma en modo servidor."""
+    def __init__(self, por_cliente, total):
+        self.por_cliente, self.total = por_cliente, total
+        self.marcas, self.todas, self.cerrojo = {}, deque(), threading.Lock()
+
+    def permitir(self, cliente):
+        ahora = time.monotonic()
+        with self.cerrojo:
+            for cola in (self.todas, *self.marcas.values()):
+                while cola and ahora - cola[0] > 60:
+                    cola.popleft()
+            self.marcas = {k: v for k, v in self.marcas.items() if v}
+            propia = self.marcas.setdefault(cliente, deque())
+            if len(propia) >= self.por_cliente or len(self.todas) >= self.total:
+                return False
+            propia.append(ahora)
+            self.todas.append(ahora)
+            return True
+
+
+def crear_servidor(port=8765, registro=None, origenes=(), host="127.0.0.1", publico=None, clave=None,
+                   preguntas_por_minuto=8, preguntas_totales_por_minuto=30):
+    # Dashboards de otro origen (por ejemplo, el de AIOROS) que pueden usar a Gemma o insertar este dashboard
     externos = frozenset(normalizar_origen(o) for o in origenes)
+    publico = host not in LOCALES if publico is None else publico
+    clave = clave or None
+    limite = Limite(preguntas_por_minuto, preguntas_totales_por_minuto)
+    ancestros = " ".join(["'self'", *sorted(externos)]) if externos else "'none'"
     datos = leer("salida/datos_demo.json")
     cfg = leer("configuracion.json")
     registro = registro or Registro()
@@ -39,9 +75,18 @@ def crear_servidor(port=8765, registro=None, origenes=()):
         with os.fdopen(fd, "w") as f:
             f.write(secrets.token_urlsafe(32))
     token = token_path.read_text().strip()
+    # En modo servidor el navegador recibe una sesión que solo sirve para consultar; la clave no sale del servidor
+    token_lectura = secrets.token_urlsafe(32) if publico else token
+
+    def con_permiso(recibido, ruta):
+        if publico:
+            validos = [clave] if ruta == "/api/sensores" else [token_lectura, clave]
+        else:
+            validos = [token]
+        return any(v and secrets.compare_digest(recibido, v) for v in validos)
 
     class Manejador(BaseHTTPRequestHandler):
-        server_version = "GammaLocal/1.0"
+        server_version = "Gamma/1.0"
 
         def log_message(self, formato, *args):
             # No preguntas, cuerpos, tokens ni parámetros de consultas en el log.
@@ -55,8 +100,9 @@ def crear_servidor(port=8765, registro=None, origenes=()):
             self.cors()
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("X-Frame-Options", "DENY")
-            self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
+            if not externos:
+                self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors " + ancestros + "; base-uri 'none'")
             self.end_headers()
             try:
                 self.wfile.write(contenido)
@@ -73,13 +119,24 @@ def crear_servidor(port=8765, registro=None, origenes=()):
                 self.send_header("Vary", "Origin")
 
         def origen_valido(self):
-            allowed = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
             host = self.headers.get("Host", "")
             origin = self.headers.get("Origin")
-            if host not in allowed or (origin and origin not in {"http://" + a for a in allowed} and origin not in externos):
-                self.json({"error": "Solo se admite el origen local del dashboard"}, 403)
-                return False
-            return True
+            if publico:
+                # Detrás del proxy HTTPS: la propia página (mismo dominio) o un dashboard autorizado
+                propio = bool(origin) and urlparse(origin).netloc.lower() == host.lower()
+                valido = not origin or propio or origin in externos
+            else:
+                # En el equipo: solo 127.0.0.1, para que otra web no pueda llegar por cambio de DNS
+                allowed = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
+                valido = host in allowed and (not origin or origin in {"http://" + a for a in allowed} or origin in externos)
+            if not valido:
+                self.json({"error": "Origen no autorizado; agrégalo con --origen o GAMMA_ORIGENES"}, 403)
+            return valido
+
+        def cliente(self):
+            # Detrás del proxy, la IP real es la última que agregó el proxy
+            reenviado = self.headers.get("X-Forwarded-For", "")
+            return reenviado.split(",")[-1].strip() if reenviado else self.client_address[0]
 
         def do_OPTIONS(self):
             # Consulta previa del navegador antes de que un dashboard autorizado envíe JSON con el token
@@ -106,10 +163,13 @@ def crear_servidor(port=8765, registro=None, origenes=()):
                 if ruta.path == "/favicon.ico":
                     return self.responder_bytes(b"", "image/x-icon", 204)
                 if ruta.path == "/api/sesion":
-                    return self.json({"token": token})
+                    return self.json({"token": token_lectura, "modo": "servidor" if publico else "local"})
                 if ruta.path == "/api/estado":
-                    return self.json({"servicio": "Gamma", "version": "1.0", "gemma": estado(),
-                                      "hora": datetime.now(timezone.utc).isoformat()})
+                    g = estado()
+                    if publico:
+                        g["mensaje"] = "Gemma disponible en el servidor" if g["disponible"] else "Gemma todavía no está listo en el servidor"
+                    return self.json({"servicio": "Gamma", "version": "1.0", "modo": "servidor" if publico else "local",
+                                      "gemma": g, "hora": datetime.now(timezone.utc).isoformat()})
                 if ruta.path == "/api/configuracion":
                     return self.json(cfg)
                 if ruta.path == "/api/sensores":
@@ -128,8 +188,13 @@ def crear_servidor(port=8765, registro=None, origenes=()):
         def do_POST(self):
             if not self.origen_valido():
                 return
-            if not secrets.compare_digest(self.headers.get("X-Gamma-Token", ""), token):
+            ruta = urlparse(self.path).path
+            if publico and ruta == "/api/sensores" and not clave:
+                return self.json({"error": "Este servidor no recibe registros: define GAMMA_CLAVE"}, 403)
+            if not con_permiso(self.headers.get("X-Gamma-Token", ""), ruta):
                 return self.json({"error": "Token de sesión requerido"}, 401)
+            if publico and ruta in ("/api/chat", "/api/simular") and not limite.permitir(self.cliente()):
+                return self.json({"error": "Hay muchas preguntas seguidas; espera un minuto y vuelve a intentarlo."}, 429)
             if self.headers.get_content_type() != "application/json":
                 return self.json({"error": "Content-Type debe ser application/json"}, 415)
             try:
@@ -140,7 +205,6 @@ def crear_servidor(port=8765, registro=None, origenes=()):
                 cuerpo = json.loads(self.rfile.read(n), parse_constant=lambda _: (_ for _ in ()).throw(ValueError("Número JSON no finito")))
                 if not isinstance(cuerpo, dict):
                     raise ValueError("Se requiere un objeto JSON")
-                ruta = urlparse(self.path).path
                 if ruta == "/api/chat":
                     return self.json(responder(datos, registro, cuerpo))
                 if ruta == "/api/predecir":
@@ -161,17 +225,25 @@ def crear_servidor(port=8765, registro=None, origenes=()):
                 import traceback
                 traceback.print_exc()
 
-    return ThreadingHTTPServer(("127.0.0.1", port), Manejador)
+    servidor = ThreadingHTTPServer((host, port), Manejador)
+    servidor.daemon_threads = True
+    return servidor
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--host", default=os.environ.get("GAMMA_HOST", "127.0.0.1"),
+                        help="127.0.0.1 en el equipo; 0.0.0.0 en un servidor detrás de un proxy HTTPS")
     parser.add_argument("--origen", action="append", default=origenes_del_entorno(),
                         help="Dashboard de otro origen autorizado a usar a Gemma; se puede repetir")
     args = parser.parse_args()
-    server = crear_servidor(args.port, origenes=args.origen)
-    print(f"Gamma listo en http://127.0.0.1:{server.server_port}", flush=True)
+    # La clave solo por variable de entorno: en la línea de comandos la verían otros procesos
+    server = crear_servidor(args.port, origenes=args.origen, host=args.host, clave=os.environ.get("GAMMA_CLAVE"))
+    modo = "local" if args.host in LOCALES else "servidor"
+    print(f"Gamma listo en http://{args.host}:{server.server_port} (modo {modo})", flush=True)
+    if modo == "servidor" and not os.environ.get("GAMMA_CLAVE"):
+        print("Sin GAMMA_CLAVE: se puede preguntar a Gemma, pero no se reciben registros de sensores.", flush=True)
     for o in sorted({normalizar_origen(o) for o in args.origen}):
         print(f"Dashboard autorizado: {o}", flush=True)
     try:

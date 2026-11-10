@@ -83,7 +83,8 @@ def main():
     if not tls and host not in ("127.0.0.1", "localhost", "::1"):
         raise SystemExit("El broker remoto requiere MQTT_TLS=1 y un certificado válido")
     port = int(os.environ.get("MQTT_PORT", "8883" if tls else "1883"))
-    token = (RAIZ / ".local" / "api-token").read_text().strip()
+    # En modo servidor se usa la clave privada; en el equipo, el token local
+    token = os.environ.get("GAMMA_CLAVE") or (RAIZ / ".local" / "api-token").read_text().strip()
     cola = Bandeja(os.environ.get("GAMMA_MQTT_DB"))
     detener = threading.Event()
     def trabajador():

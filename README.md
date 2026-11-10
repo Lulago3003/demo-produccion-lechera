@@ -26,6 +26,7 @@ lo indica. En Windows y Linux hay que instalar antes [Ollama](https://ollama.com
 - [Guía para presentar el dashboard, pestaña por pestaña](GUIA_PRESENTACION.md)
 - [Entrega, uso, alcance y pendientes reales](ENTREGA.md)
 - [API e integración con la aplicación de captura y MQTT](INTEGRACION.md)
+- [Gemma en un servidor (Google Cloud o Docker) para el dashboard de demostración](DESPLIEGUE.md)
 - [Preparación y validación pendiente en Jetson](JETSON.md)
 - [Gemma 3 de 4B: qué es, que no lo entrenamos y dónde están sus pesos](modelos/GEMMA.md)
 

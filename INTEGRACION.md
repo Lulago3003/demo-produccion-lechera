@@ -8,6 +8,9 @@ origen obtenerlo; **no publicar ese endpoint sin una capa de autenticación**.
 
 ## Gemma dentro de otro dashboard
 
+Para que funcione para cualquiera que abra el dashboard, sin instalar nada, Gemma va en un servidor:
+ver [DESPLIEGUE.md](DESPLIEGUE.md). Lo que sigue es para usarlo desde el equipo donde se abre la página.
+
 Gemma corre en el equipo, nunca en la web. Si el dashboard se publica en otra página (por ejemplo,
 el dashboard de AIOROS), esa página puede usar el Gemma del equipo donde se abre:
 
