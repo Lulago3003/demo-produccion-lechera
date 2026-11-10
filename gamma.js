@@ -4,7 +4,7 @@
   const usd=n=>new Intl.NumberFormat('es-PA',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n);
   const usd0=n=>new Intl.NumberFormat('es-PA',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
   const num=(n,d=1)=>Number(n).toLocaleString('es-PA',{maximumFractionDigits:d});
-  let precio=cfg.precio_litro, densidad=cfg.densidad_kg_litro, token='', conectado=false, ocupado=false, base='', enServidor=false;
+  let precio=cfg.precio_litro, densidad=cfg.densidad_kg_litro, token='', conectado=false, ocupado=false, base='', enServidor=false, nube='', bajoDemanda=false;
   let historial=[], finca='demo', simulado=false, firma='', primerSensor=true, lecturas=null, pendienteAuto=false;
   let seleccion=String($('v-arete').textContent), eco=[];
   try{
@@ -88,7 +88,7 @@
   async function api(ruta,body,timeout=150000){
     const headers={};if(body){headers['Content-Type']='application/json';headers['X-Gamma-Token']=token;}
     const r=await fetch(base+ruta,{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(timeout)});
-    const d=await r.json();if(!r.ok)throw new Error(d.error||'No se pudo completar la solicitud');return d;
+    const d=await r.json();if(!r.ok){const e=new Error(d.error||'No se pudo completar la solicitud');e.status=r.status;throw e;}return d;
   }
   function mostrarRespuesta(p,r){
     const cont=$('chat-respuestas');if(!historial.length)cont.innerHTML='';
@@ -100,12 +100,21 @@
   }
   async function preguntar(p,automatico=false){
     if(ocupado)return;
-    if(!conectado){$('chat-error').textContent='Gemma no está conectado. Abre «Encender Gemma en esta página», arriba de la conversación.';return;}
+    if(!conectado&&!nube){$('chat-error').textContent='Gemma no está conectado. Abre «Encender Gemma en esta página», arriba de la conversación.';return;}
     ocupado=true;$('chat-enviar').disabled=true;$('chat-respuestas').setAttribute('aria-busy','true');$('chat-error').textContent='';
     $('gemma-estado').className='gamma-status procesando';$('gemma-estado').textContent='Gemma está leyendo los datos…';
     try{
+      if(nube&&!conectado)await despertar();
+      $('gemma-estado').textContent='Gemma está leyendo los datos…';
       const conVaca=$('chat-alcance').value==='vaca'||/esta vaca|seleccionada/.test(p.toLowerCase());
-      const r=await api('/api/chat',{pregunta:p,vaca:conVaca?seleccion:null,precio_litro:precio,densidad_kg_litro:densidad,finca,simulado,historial:historial.slice(-3),tema:automatico?'sensores':'auto'});
+      const consulta={pregunta:p,vaca:conVaca?seleccion:null,precio_litro:precio,densidad_kg_litro:densidad,finca,simulado,historial:historial.slice(-3),tema:automatico?'sensores':'auto'};
+      let r;
+      try{r=await api('/api/chat',consulta);}
+      catch(e){
+        // en la nube, si Gemma se apagó por falta de uso, la sesión anterior ya no sirve: se vuelve a encender
+        if(!nube||e.status!==401)throw e;
+        conectado=false;await despertar();$('gemma-estado').textContent='Gemma está leyendo los datos…';r=await api('/api/chat',consulta);
+      }
       if(r.vaca_consultada){mostrar(r.vaca_consultada);$('chat-alcance').value='vaca';}
       mostrarRespuesta(p,r);historial.push(p);if(historial.length>10)historial.shift();
       $('gemma-estado').className='gamma-status '+(r.motor==='gemma'?'listo':'');$('gemma-estado').textContent=r.motor==='gemma'?'Gemma 3 de 4B, '+(enServidor?'en el servidor':'en este equipo'):'Consulta terminada; revisa el estado del modelo';
@@ -138,7 +147,8 @@
     $('sensor-resumen').innerHTML=h+'</div>';
   }
   async function refrescar(){
-    if(!conectado)return;
+    // en la nube no se consulta nada en segundo plano: Gemma solo se enciende cuando alguien pregunta
+    if(!conectado||nube||bajoDemanda)return;
     const f=finca,sim=simulado;
     try{
       const s=await api('/api/sensores?finca='+encodeURIComponent(f)+'&simulado='+sim,undefined,10000);
@@ -210,19 +220,52 @@
     token=s.token;
     const e=await api('/api/estado',undefined,10000);
     if(e.servicio!=='Gamma')throw new Error('Otro servicio en esa dirección');
-    conectado=true;enServidor=e.modo==='servidor';
+    conectado=true;enServidor=e.modo==='servidor';bajoDemanda=!!e.bajo_demanda;
     $('gemma-estado').textContent=e.gemma.mensaje;$('gemma-estado').className='gamma-status '+(e.gemma.disponible?'listo':'');
+  }
+  // Gemma en la nube (servidor_gemma en configuracion.json): no se contacta al abrir la página, para que la
+  // GPU solo se encienda cuando alguien escribe. Los sensores muestran el escenario simulado de la página.
+  function modoNube(url){
+    nube=url;
+    $('gemma-estado').className='gamma-status';$('gemma-estado').textContent='Gemma en la nube: se enciende cuando preguntas';
+    $('chat-respuestas').innerHTML='<div class="gamma-empty">Gemma corre en la nube con GPU y solo se enciende cuando escribes. La primera respuesta puede tardar hasta un minuto mientras arranca; las siguientes, unos segundos.</div>';
+    sensoresDeEjemplo();
+  }
+  function sensoresDeEjemplo(){
+    $('sensor-estado').textContent='Los sensores llegan al equipo de la finca; aquí se puede ver el escenario simulado.';
+    $('sensor-resumen').innerHTML='<div class="gamma-notice">Toca <b>Cargar escenario simulado</b> para ver un ejemplo con una caída de producción y una alerta de calor.</div>';
+    ['sensor-aplicar','sensor-finca','sensor-modo','sensor-auto'].forEach(id=>{$(id).disabled=true;});
+    $('sensor-demo').onclick=()=>{
+      mostrarSensores(GAMMA_EJEMPLOS.sensores);
+      $('sensor-estado').textContent='Escenario simulado de la finca demo, calculado al generar esta página: '+GAMMA_EJEMPLOS.sensores.eventos+' eventos.';
+    };
+  }
+  async function despertar(){
+    $('gemma-estado').textContent='Encendiendo Gemma en la nube… la primera vez tarda hasta un minuto';
+    try{
+      base=nube;
+      const s=await api('/api/sesion',undefined,180000);
+      if(typeof s.token!=='string'||!s.token)throw new Error('sin sesión');
+      token=s.token;
+      for(let i=0;i<40;i++){
+        const e=await api('/api/estado',undefined,30000);
+        if(e.servicio!=='Gamma')throw new Error('otro servicio');
+        if(e.gemma.disponible){conectado=true;enServidor=true;bajoDemanda=!!e.bajo_demanda;return;}
+        await new Promise(r=>setTimeout(r,3000));
+      }
+      throw new Error('Gemma no terminó de cargar');
+    }catch(e){conectado=false;token='';throw new Error('No se pudo encender Gemma en la nube; vuelve a intentarlo en un minuto.');}
   }
   async function conectar(){
     const candidatos=[];
     if(/^https?:$/.test(location.protocol))candidatos.push('');
-    // servidor de Gemma fijado en configuracion.json (servidor_gemma) al publicar el dashboard en otra página
-    const fijo=String(cfg.servidor_gemma||'').replace(/\/+$/,'');
-    if(/^https?:\/\/[^/?#]+$/.test(fijo)&&fijo!==location.origin)candidatos.push(fijo);
     servidoresPedidos().forEach(c=>{if(c!==location.origin&&!candidatos.includes(c))candidatos.push(c);});
     for(const c of candidatos){try{await enlazar(c);break;}catch(e){conectado=false;base='';token='';}}
-    if(!conectado){modoWeb();return;}
-    await refrescar();
+    if(conectado){if(bajoDemanda)sensoresDeEjemplo();else await refrescar();return;}
+    // servidor de Gemma fijado en configuracion.json (servidor_gemma) al publicar el dashboard en otra página
+    const fijo=String(cfg.servidor_gemma||'').replace(/\/+$/,'');
+    if(/^https?:\/\/[^/?#]+$/.test(fijo)&&fijo!==location.origin){modoNube(fijo);return;}
+    modoWeb();
   }
   conectar();setInterval(()=>{if(!document.hidden)refrescar();},3000);
   window.GammaUI={calculoEconomico,dibujarGrafica};

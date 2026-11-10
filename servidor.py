@@ -168,7 +168,9 @@ def crear_servidor(port=8765, registro=None, origenes=(), host="127.0.0.1", publ
                     g = estado()
                     if publico:
                         g["mensaje"] = "Gemma disponible en el servidor" if g["disponible"] else "Gemma todavía no está listo en el servidor"
+                    # En Cloud Run (K_SERVICE) el contenedor se apaga sin uso: el dashboard no consulta en segundo plano
                     return self.json({"servicio": "Gamma", "version": "1.0", "modo": "servidor" if publico else "local",
+                                      "bajo_demanda": "K_SERVICE" in os.environ,
                                       "gemma": g, "hora": datetime.now(timezone.utc).isoformat()})
                 if ruta.path == "/api/configuracion":
                     return self.json(cfg)
@@ -232,7 +234,8 @@ def crear_servidor(port=8765, registro=None, origenes=(), host="127.0.0.1", publ
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8765)),
+                        help="Puerto; Cloud Run lo indica en la variable PORT")
     parser.add_argument("--host", default=os.environ.get("GAMMA_HOST", "127.0.0.1"),
                         help="127.0.0.1 en el equipo; 0.0.0.0 en un servidor detrás de un proxy HTTPS")
     parser.add_argument("--origen", action="append", default=origenes_del_entorno(),

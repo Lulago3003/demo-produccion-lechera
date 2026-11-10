@@ -373,6 +373,12 @@ class ModoServidor(unittest.TestCase):
         with self.post('/api/predecir',RASGOS,self.lectura,Host='gemma.invalid',Origin='https://gemma.invalid') as r:
             self.assertAlmostEqual(json.load(r)['kg_corregidos'],6343.08,places=2)
 
+    def test_bajo_demanda_en_cloud_run(self):
+        # Cloud Run define K_SERVICE: el dashboard no debe consultar en segundo plano y mantener la GPU encendida
+        with urlopen(self.url+'/api/estado') as r:self.assertFalse(json.load(r)['bajo_demanda'])
+        with patch.dict('os.environ',{'K_SERVICE':'gamma-gemma'}),urlopen(self.url+'/api/estado') as r:
+            self.assertTrue(json.load(r)['bajo_demanda'])
+
     def test_sensores_solo_con_clave(self):
         with self.assertRaises(HTTPError) as ctx:self.post('/api/sensores',diario(id='srv-1'),self.lectura)
         self.assertEqual(ctx.exception.code,401)

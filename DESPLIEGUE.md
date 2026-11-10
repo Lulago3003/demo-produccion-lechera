@@ -4,7 +4,34 @@ Con los clientes, Gemma corre en la Jetson de la finca, sin internet (`iniciar.p
 [JETSON.md](JETSON.md)). Para el dashboard de demostración corre en un servidor, para que cualquiera
 que abra el dashboard vea a Gemma explicar los resultados del modelo sin instalar nada.
 
-## En Google Cloud, con un comando
+## Recomendado para la demostración: Cloud Run con GPU, encendido solo al usarlo
+
+Gemma corre en Cloud Run con una GPU NVIDIA L4 en `us-central1` (Iowa). No hay nada encendido mientras nadie
+pregunta: la primera pregunta enciende el contenedor (Gemma va dentro de la imagen y se carga en la GPU), las
+siguientes responden en segundos, y sin preguntas Cloud Run lo apaga solo. Google cobra por segundo solo
+mientras está encendido. No usa VMs ni IP pública.
+
+En Cloud Shell, con el proyecto elegido:
+
+```bash
+git clone https://github.com/Lulago3003/demo-produccion-lechera && cd demo-produccion-lechera && bash despliegue/cloudrun.sh
+```
+
+El script activa Cloud Run, Cloud Build y Artifact Registry, construye la imagen (unos 7 GB; la primera vez
+tarda) y publica el servicio `gamma-gemma` con: 1 GPU L4 sin redundancia zonal, 8 vCPU, 32 GiB, mínimo 0 y
+máximo 1 instancia, y acceso público sin depender de `allUsers` (`--no-invoker-iam-check`, la opción que Google
+indica cuando la organización restringe los dominios). El primer despliegue con GPU en la región recibe cupo
+automáticamente.
+
+En organizaciones creadas desde 2024, la cuenta de servicio que construye la imagen no tiene permisos por
+defecto. El script no cambia permisos: si falta `roles/run.builder`, muestra el comando para que lo corra el
+administrador del proyecto.
+
+Al final imprime la dirección del servicio. En el dashboard publicado se pone en `servidor_gemma` (ver abajo).
+Con esa configuración, el dashboard no consulta al servidor al abrirse: Gemma solo se enciende cuando alguien
+escribe una pregunta, y si se apagó por falta de uso, se vuelve a encender sola en la siguiente.
+
+## En una VM de Google Cloud, siempre encendida
 
 En la consola de Google Cloud, con el proyecto elegido arriba, abrir **Cloud Shell** (el ícono `>_`) y pegar:
 
