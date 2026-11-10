@@ -17,7 +17,7 @@ gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . \
   || { echo "Cloud Shell no tiene una cuenta activa (revisa la verificación en dos pasos de la cuenta)."; exit 1; }
 
 echo "Proyecto: $PROYECTO · región: $REGION · servicio: $SERVICIO"
-echo "GPU NVIDIA L4, 8 vCPU, 32 GiB. Mínimo 0 instancias (apagado sin uso), máximo 1."
+echo "GPU NVIDIA L4, 4 vCPU, 16 GiB (unos 1,05 USD por hora encendido). Mínimo 0 instancias (apagado sin uso), máximo 1."
 echo "Dashboard autorizado: $ORIGENES"
 echo "Cobra por segundo solo mientras está encendido."
 read -r -p "¿Continuar? (s/n) " respuesta
@@ -51,7 +51,7 @@ rm -f "$construccion/.dockerignore" "$construccion/.gcloudignore"
 # La imagen pesa unos 7 GB (Ollama con CUDA y Gemma): hasta una hora para construirla
 CLOUDSDK_BUILDS_TIMEOUT=3600 gcloud beta run deploy "$SERVICIO" "${G[@]}" --region "$REGION" --source "$construccion" --quiet \
   --gpu 1 --gpu-type nvidia-l4 --no-gpu-zonal-redundancy \
-  --cpu 8 --memory 32Gi --no-cpu-throttling \
+  --cpu 4 --memory 16Gi --no-cpu-throttling \
   --min-instances 0 --max-instances 1 --concurrency 4 --timeout 300 \
   --startup-probe tcpSocket.port=8080,initialDelaySeconds=0,failureThreshold=1,timeoutSeconds=240,periodSeconds=240 \
   --no-invoker-iam-check \

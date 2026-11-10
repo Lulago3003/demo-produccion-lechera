@@ -18,10 +18,16 @@ git clone https://github.com/Lulago3003/demo-produccion-lechera && cd demo-produ
 ```
 
 El script activa Cloud Run, Cloud Build y Artifact Registry, construye la imagen (unos 7 GB; la primera vez
-tarda) y publica el servicio `gamma-gemma` con: 1 GPU L4 sin redundancia zonal, 8 vCPU, 32 GiB, mínimo 0 y
+tarda) y publica el servicio `gamma-gemma` con: 1 GPU L4 sin redundancia zonal, 4 vCPU, 16 GiB, mínimo 0 y
 máximo 1 instancia, y acceso público sin depender de `allUsers` (`--no-invoker-iam-check`, la opción que Google
 indica cuando la organización restringe los dominios). El primer despliegue con GPU en la región recibe cupo
 automáticamente.
+
+Costo, con las tarifas publicadas de Cloud Run en us-central1 sin redundancia zonal (GPU L4 0,0001867 USD/s,
+vCPU 0,000018 USD/s, memoria 0,000002 USD por GiB-s): unos 1,05 USD por hora mientras está encendido. Después de
+la última pregunta Cloud Run puede dejarlo encendido hasta 15 minutos antes de apagarlo, y ese tiempo también se
+cobra. Guardar la imagen en Artifact Registry cuesta menos de 1 USD al mes. Con máximo 1 instancia, el peor caso
+(encendido el mes entero) ronda 760 USD, así que conviene una alerta de presupuesto en Facturación.
 
 En organizaciones creadas desde 2024, la cuenta de servicio que construye la imagen no tiene permisos por
 defecto. El script no cambia permisos: si falta `roles/run.builder`, muestra el comando para que lo corra el
