@@ -13,7 +13,22 @@ from gamma_sensores import Registro, simular
 from gamma_asistente import estado, responder
 
 
-def crear_servidor(port=8765, registro=None):
+def normalizar_origen(origen):
+    """Origen de un dashboard externo autorizado: esquema y dominio, sin ruta (https://panel.ejemplo.com)."""
+    u = urlparse(origen.strip())
+    if (u.scheme not in ("http", "https") or not u.hostname or u.path not in ("", "/")
+            or u.query or u.fragment or u.username or u.password):
+        raise ValueError(f"Origen no válido: {origen!r}. Usa solo esquema y dominio, por ejemplo https://panel.ejemplo.com")
+    return f"{u.scheme}://{u.netloc.lower()}"
+
+
+def origenes_del_entorno():
+    return [o for o in os.environ.get("GAMMA_ORIGENES", "").split(",") if o.strip()]
+
+
+def crear_servidor(port=8765, registro=None, origenes=()):
+    # Dashboards de otro origen (por ejemplo, el de AIOROS) que pueden usar a Gemma desde el navegador del equipo
+    externos = frozenset(normalizar_origen(o) for o in origenes)
     datos = leer("salida/datos_demo.json")
     cfg = leer("configuracion.json")
     registro = registro or Registro()
@@ -37,6 +52,7 @@ def crear_servidor(port=8765, registro=None):
             self.send_header("Content-Type", tipo)
             self.send_header("Content-Length", str(len(contenido)))
             self.send_header("Cache-Control", "no-store")
+            self.cors()
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("X-Frame-Options", "DENY")
@@ -50,14 +66,34 @@ def crear_servidor(port=8765, registro=None):
         def json(self, contenido, status=200):
             self.responder_bytes(json.dumps(contenido, ensure_ascii=False, allow_nan=False).encode(), "application/json; charset=utf-8", status)
 
+        def cors(self):
+            origin = self.headers.get("Origin")
+            if origin in externos:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Vary", "Origin")
+
         def origen_valido(self):
             allowed = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
             host = self.headers.get("Host", "")
             origin = self.headers.get("Origin")
-            if host not in allowed or (origin and origin not in {"http://" + a for a in allowed}):
+            if host not in allowed or (origin and origin not in {"http://" + a for a in allowed} and origin not in externos):
                 self.json({"error": "Solo se admite el origen local del dashboard"}, 403)
                 return False
             return True
+
+        def do_OPTIONS(self):
+            # Consulta previa del navegador antes de que un dashboard autorizado envíe JSON con el token
+            if not self.origen_valido():
+                return
+            self.send_response(204)
+            self.cors()
+            self.send_header("Access-Control-Allow-Methods", "GET, POST")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Gamma-Token")
+            self.send_header("Access-Control-Max-Age", "600")
+            if self.headers.get("Access-Control-Request-Private-Network") == "true" and self.headers.get("Origin") in externos:
+                self.send_header("Access-Control-Allow-Private-Network", "true")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
 
         def do_GET(self):
             if not self.origen_valido():
@@ -131,9 +167,13 @@ def crear_servidor(port=8765, registro=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--origen", action="append", default=origenes_del_entorno(),
+                        help="Dashboard de otro origen autorizado a usar a Gemma; se puede repetir")
     args = parser.parse_args()
-    server = crear_servidor(args.port)
+    server = crear_servidor(args.port, origenes=args.origen)
     print(f"Gamma listo en http://127.0.0.1:{server.server_port}", flush=True)
+    for o in sorted({normalizar_origen(o) for o in args.origen}):
+        print(f"Dashboard autorizado: {o}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

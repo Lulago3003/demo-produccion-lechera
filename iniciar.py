@@ -2,23 +2,29 @@
 """Arranque local reproducible. Ctrl+C detiene únicamente los procesos que abrió."""
 import argparse
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
 import platform
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
 import time
 from urllib.request import urlopen
 import webbrowser
+import zipfile
 
 RAIZ = Path(__file__).resolve().parent
 VERSION_OLLAMA = "0.40.13"
 SHA_MAC = "bae29252232b9e1358cf5801a7d65a07442af18fb5467cb68c7fc3711f59c511"
 # Pesos de Gemma 3 de 4B (Q4_K_M) con los que se probó la demo; ver modelos/GEMMA.md
 GEMMA_PESOS = "sha256:f06e91e18fc74295d0c781bf91622508c75655e2c18ed869d52447ffe1e667e1"
+# Copia sin internet de esos pesos (Drive o versión publicada en GitHub, en dos partes)
+ZIP_PESOS_SHA = "37bf74b306599a5a0714b6c33bf8793713690aca02b4a473305e065ecfce24ac"
+PARTES_BYTES = (1782579200, 1567717425)
 
 
 def get(url):
@@ -45,6 +51,113 @@ def revisar_gemma(env):
     return False
 
 
+class Unidas(io.RawIOBase):
+    """Lee las partes .001, .002… como un solo archivo, sin unirlas en disco."""
+    def __init__(self, rutas):
+        self.archivos = [open(r, "rb") for r in rutas]
+        self.tamanos = [os.fstat(f.fileno()).st_size for f in self.archivos]
+        self.total, self.pos = sum(self.tamanos), 0
+
+    def readable(self):
+        return True
+
+    def seekable(self):
+        return True
+
+    def tell(self):
+        return self.pos
+
+    def seek(self, desplazamiento, desde=io.SEEK_SET):
+        base = {io.SEEK_SET: 0, io.SEEK_CUR: self.pos, io.SEEK_END: self.total}[desde]
+        self.pos = max(0, base + desplazamiento)
+        return self.pos
+
+    def readinto(self, destino):
+        hecho, inicio = 0, 0
+        for f, n in zip(self.archivos, self.tamanos):
+            if hecho < len(destino) and inicio <= self.pos < inicio + n:
+                f.seek(self.pos - inicio)
+                leido = f.readinto(memoryview(destino)[hecho:hecho + inicio + n - self.pos])
+                hecho += leido
+                self.pos += leido
+            inicio += n
+        return hecho
+
+    def close(self):
+        for f in self.archivos:
+            f.close()
+        super().close()
+
+
+def partes_de(ruta):
+    """Gemma3-…zip.001 → [.001, .002, …]; un .zip normal → [zip]."""
+    ruta = Path(ruta).expanduser()
+    if not ruta.exists():
+        raise RuntimeError(f"No encuentro {ruta}.")
+    if not ruta.suffix.lstrip(".").isdigit():
+        return [ruta]
+    base, partes = ruta.with_suffix(""), []
+    while (siguiente := base.with_name(f"{base.name}.{len(partes) + 1:03d}")).exists():
+        partes.append(siguiente)
+    if not partes:
+        raise RuntimeError(f"No encuentro {base.name}.001 junto a {ruta.name}.")
+    return partes
+
+
+def instalar_pesos(ruta, destino, sha=ZIP_PESOS_SHA, bytes_partes=PARTES_BYTES):
+    """Instala los pesos de Gemma desde el ZIP de Drive o desde sus dos partes de GitHub, ya comprobados."""
+    destino = Path(destino)
+    partes = partes_de(ruta)
+    if Path(ruta).suffix.lstrip(".").isdigit():
+        for i, (parte, esperado) in enumerate(zip(partes, bytes_partes), 1):
+            if parte.stat().st_size != esperado:
+                raise RuntimeError(f"La parte {i} ({parte.name}) está incompleta: tiene {parte.stat().st_size:,} bytes "
+                                   f"y debe tener {esperado:,}. Vuelve a descargarla.")
+        if len(partes) < len(bytes_partes):
+            raise RuntimeError(f"Falta la parte {len(partes) + 1}: descárgala en la misma carpeta que {partes[0].name}.")
+    print("Comprobando la copia de Gemma…", flush=True)
+    h = hashlib.sha256()
+    with Unidas(partes) as f:
+        while bloque := f.read(1 << 22):
+            h.update(bloque)
+    if h.hexdigest() != sha:
+        raise RuntimeError("La copia de Gemma no coincide con la publicada: la descarga quedó incompleta o dañada. "
+                           "Vuelve a descargarla.")
+    print(f"Copia correcta. Instalando los pesos en {destino}…", flush=True)
+    with Unidas(partes) as f, zipfile.ZipFile(f) as z:
+        for m in z.infolist():
+            nombre = m.filename.replace("\\", "/")
+            if "/ollama/" not in "/" + nombre or m.is_dir():
+                continue
+            relativo = Path(nombre.split("ollama/", 1)[1])
+            if relativo.is_absolute() or ".." in relativo.parts:
+                raise RuntimeError(f"Ruta no permitida dentro del ZIP: {m.filename}")
+            salida = destino / relativo
+            salida.parent.mkdir(parents=True, exist_ok=True)
+            with z.open(m) as src, salida.open("wb") as dst:
+                shutil.copyfileobj(src, dst, 1 << 22)
+    return destino
+
+
+def elegir_puerto(preferido=8765, intentos=5):
+    """Primer puerto desde el preferido con Gamma ya abierto (se reutiliza) o libre. Otros programas,
+    como el servicio de Logitech, a veces ocupan el 8765."""
+    for puerto in range(preferido, preferido + intentos):
+        try:
+            if get(f"http://127.0.0.1:{puerto}/api/estado").get("servicio") == "Gamma":
+                return puerto, True
+        except (OSError, ValueError, AttributeError):
+            pass
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("127.0.0.1", puerto))
+                return puerto, False
+            except OSError:
+                continue
+    raise RuntimeError(f"Los puertos {preferido} a {preferido + intentos - 1} están ocupados por otros programas. "
+                       "Usa --port con otro número.")
+
+
 def esperar(url, proceso, segundos=30):
     for _ in range(segundos * 2):
         if proceso.poll() is not None:
@@ -63,8 +176,15 @@ def obtener_ollama():
     instalado = shutil.which("ollama")
     if instalado:
         return instalado
-    if platform.system() != "Darwin":
+    sistema = platform.system()
+    if sistema == "Windows":
+        raise RuntimeError("Instala Ollama para Windows desde https://ollama.com/download y vuelve a ejecutar "
+                           "python iniciar.py.")
+    if sistema == "Linux" and platform.machine().lower() in ("aarch64", "arm64"):
         raise RuntimeError("Instala Ollama para Linux ARM64 según JETSON.md y vuelve a ejecutar el arranque.")
+    if sistema != "Darwin":
+        raise RuntimeError("Instala Ollama para Linux desde https://ollama.com/download/linux y vuelve a ejecutar "
+                           "python3 iniciar.py.")
     print("Descargando Ollama oficial para macOS (solo la primera vez)…", flush=True)
     local.parent.mkdir(exist_ok=True)
     archivo = local.parent / "ollama-darwin.tgz"
@@ -82,7 +202,11 @@ def main():
     p = argparse.ArgumentParser(description="Inicia Gamma y Gemma en este equipo")
     p.add_argument("--sin-abrir", action="store_true", help="No abrir el navegador automáticamente")
     p.add_argument("--mqtt", action="store_true", help="Iniciar también el puente con la configuración MQTT del entorno")
-    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--port", type=int, help="Puerto del dashboard; por defecto el 8765 o el siguiente libre")
+    p.add_argument("--origen", action="append", default=[], metavar="URL",
+                   help="Dashboard de otro origen que puede usar a Gemma, por ejemplo https://panel.aioros.tech; se puede repetir")
+    p.add_argument("--pesos", metavar="ZIP",
+                   help="Instalar Gemma sin descargarlo: el ZIP de Drive o la parte .001 de GitHub (con la .002 al lado)")
     args = p.parse_args()
     if sys.version_info < (3, 11):
         raise SystemExit("Se requiere Python 3.11 o posterior.")
@@ -96,7 +220,6 @@ def main():
     env.setdefault("OLLAMA_MODELS", str(carpeta / "ollama"))
     env.setdefault("OLLAMA_NO_CLOUD", "1")
     env.setdefault("OLLAMA_NUM_PARALLEL", "1")
-    env.setdefault("GAMMA_API_URL", f"http://127.0.0.1:{args.port}")
     procesos, archivos = [], []
     def lanzar(cmd, log):
         f = (carpeta / log).open("ab")
@@ -105,6 +228,11 @@ def main():
         procesos.append(proc)
         return proc
     try:
+        if args.origen:
+            from servidor import normalizar_origen
+            env["GAMMA_ORIGENES"] = ",".join(sorted({normalizar_origen(o) for o in args.origen}))
+        if args.pesos:
+            instalar_pesos(args.pesos, env["OLLAMA_MODELS"])
         ollama = obtener_ollama()
         try:
             modelos = get(env["OLLAMA_URL"] + "/api/tags")
@@ -116,14 +244,17 @@ def main():
             subprocess.run([ollama, "pull", env["GEMMA_MODEL"]], env=env, check=True)
         revisar_gemma(env)
         subprocess.run([sys.executable, "construir_dashboard.py"], check=True)
-        url = env["GAMMA_API_URL"]
-        try:
-            previo = get(url + "/api/estado")
-            if previo.get("servicio") != "Gamma":
-                raise RuntimeError("El puerto elegido está ocupado por otro servicio")
+        puerto, abierto = elegir_puerto(args.port or 8765, 1 if args.port else 5)
+        if args.port is None and puerto != 8765:
+            print(f"El puerto 8765 lo usa otro programa; Gamma usará el {puerto}.", flush=True)
+        url = env.setdefault("GAMMA_API_URL", f"http://127.0.0.1:{puerto}")
+        if abierto:
             print("Gamma ya estaba iniciado; se reutiliza esa sesión.", flush=True)
-        except OSError:
-            proc = lanzar([sys.executable, "servidor.py", "--port", str(args.port)], "servidor.log")
+            if args.origen:
+                print("Aviso: para autorizar otro dashboard, cierra el Gamma que ya estaba abierto y vuelve a iniciarlo.",
+                      flush=True)
+        else:
+            proc = lanzar([sys.executable, "servidor.py", "--port", str(puerto)], "servidor.log")
             esperar(url + "/api/estado", proc)
         if args.mqtt:
             try:
@@ -131,7 +262,12 @@ def main():
             except ImportError:
                 raise RuntimeError("Instala requirements-mqtt.txt en este Python para activar MQTT.") from None
             lanzar([sys.executable, "mqtt_bridge.py"], "mqtt.log")
-        print(f"\nGamma listo: {url}\nGemma: {env['GEMMA_MODEL']} · Ctrl+C para cerrar esta sesión.\n", flush=True)
+        print(f"\nGamma listo: {url}\nGemma: {env['GEMMA_MODEL']} · Ctrl+C para cerrar esta sesión.", flush=True)
+        for o in env.get("GAMMA_ORIGENES", "").split(","):
+            if o:
+                print(f"Dashboard autorizado a usar a Gemma: {o} (ábrelo con ?gemma=local al final de la dirección)",
+                      flush=True)
+        print(flush=True)
         if not args.sin_abrir:
             webbrowser.open(url)
         while True:

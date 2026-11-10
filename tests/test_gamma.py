@@ -13,7 +13,7 @@ from gamma_core import economia, leer, parametros, predecir
 from gamma_sensores import PANAMA, Registro, proyeccion_temprana, simular, validar_evento
 from gamma_asistente import contexto, responder
 from mqtt_bridge import Bandeja
-from servidor import crear_servidor
+from servidor import crear_servidor, normalizar_origen
 
 D = leer("salida/datos_demo.json")
 RASGOS = {"corregida":5801,"pico":24.4,"dias_pico":56,"duracion":271,"dias_secos":69,
@@ -295,6 +295,52 @@ class API(unittest.TestCase):
             with Bandeja(path).db() as db:
                 estado,intentos,error=db.execute('SELECT estado,intentos,error FROM cola').fetchone()
             self.assertEqual(estado,'pendiente');self.assertEqual(intentos,1);self.assertTrue(error)
+
+
+class DashboardExterno(unittest.TestCase):
+    """Otro dashboard (por ejemplo, el de AIOROS) usa a Gemma solo si se autorizó su origen."""
+    PANEL = 'https://panel.invalid'
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp=tempfile.TemporaryDirectory()
+        cls.server=crear_servidor(0,Registro(Path(cls.tmp.name)/'ext.db'),origenes=[cls.PANEL+'/'])
+        cls.thread=threading.Thread(target=cls.server.serve_forever,daemon=True);cls.thread.start()
+        cls.url=f'http://127.0.0.1:{cls.server.server_port}'
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown();cls.server.server_close();cls.thread.join();cls.tmp.cleanup()
+
+    def test_sesion_y_post_desde_panel_autorizado(self):
+        with urlopen(Request(self.url+'/api/sesion',headers={'Origin':self.PANEL})) as r:
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'],self.PANEL);token=json.load(r)['token']
+        req=Request(self.url+'/api/predecir',data=json.dumps(RASGOS).encode(),
+                    headers={'Content-Type':'application/json','X-Gamma-Token':token,'Origin':self.PANEL})
+        with urlopen(req,timeout=5) as r:
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'],self.PANEL)
+            self.assertAlmostEqual(json.load(r)['kg_corregidos'],6343.08,places=2)
+
+    def test_consulta_previa(self):
+        req=Request(self.url+'/api/chat',method='OPTIONS',headers={'Origin':self.PANEL,'Access-Control-Request-Method':'POST',
+              'Access-Control-Request-Headers':'content-type,x-gamma-token','Access-Control-Request-Private-Network':'true'})
+        with urlopen(req) as r:
+            self.assertEqual(r.status,204)
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'],self.PANEL)
+            self.assertIn('X-Gamma-Token',r.headers['Access-Control-Allow-Headers'])
+            self.assertEqual(r.headers['Access-Control-Allow-Private-Network'],'true')
+
+    def test_panel_no_autorizado(self):
+        for metodo in ('GET','OPTIONS'):
+            with self.subTest(metodo=metodo),self.assertRaises(HTTPError) as ctx:
+                urlopen(Request(self.url+'/api/sesion',method=metodo,headers={'Origin':'https://otro.invalid'}))
+            self.assertEqual(ctx.exception.code,403)
+            self.assertIsNone(ctx.exception.headers['Access-Control-Allow-Origin'])
+
+    def test_origen_mal_escrito(self):
+        self.assertEqual(normalizar_origen(' HTTPS://Panel.Invalid:8443/ '),'https://panel.invalid:8443')
+        for o in ('panel.invalid','ftp://panel.invalid','https://panel.invalid/gamma','https://u:p@panel.invalid'):
+            with self.subTest(o=o),self.assertRaises(ValueError):normalizar_origen(o)
 
 
 if __name__=='__main__':unittest.main()

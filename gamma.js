@@ -4,7 +4,7 @@
   const usd=n=>new Intl.NumberFormat('es-PA',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n);
   const usd0=n=>new Intl.NumberFormat('es-PA',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
   const num=(n,d=1)=>Number(n).toLocaleString('es-PA',{maximumFractionDigits:d});
-  let precio=cfg.precio_litro, densidad=cfg.densidad_kg_litro, token='', conectado=false, ocupado=false;
+  let precio=cfg.precio_litro, densidad=cfg.densidad_kg_litro, token='', conectado=false, ocupado=false, base='';
   let historial=[], finca='demo', simulado=false, firma='', primerSensor=true, lecturas=null, pendienteAuto=false;
   let seleccion=String($('v-arete').textContent), eco=[];
   try{
@@ -87,7 +87,7 @@
   }
   async function api(ruta,body,timeout=150000){
     const headers={};if(body){headers['Content-Type']='application/json';headers['X-Gamma-Token']=token;}
-    const r=await fetch(ruta,{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(timeout)});
+    const r=await fetch(base+ruta,{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(timeout)});
     const d=await r.json();if(!r.ok)throw new Error(d.error||'No se pudo completar la solicitud');return d;
   }
   function mostrarRespuesta(p,r){
@@ -100,7 +100,7 @@
   }
   async function preguntar(p,automatico=false){
     if(ocupado)return;
-    if(!conectado){$('chat-error').textContent='Abre iniciar.command en la carpeta del proyecto y usa el dashboard en http://127.0.0.1:8765.';return;}
+    if(!conectado){$('chat-error').textContent='Gemma no está conectado. Abre «Encender Gemma en esta página», arriba de la conversación.';return;}
     ocupado=true;$('chat-enviar').disabled=true;$('chat-respuestas').setAttribute('aria-busy','true');$('chat-error').textContent='';
     $('gemma-estado').className='gamma-status procesando';$('gemma-estado').textContent='Gemma está leyendo los datos…';
     try{
@@ -157,7 +157,7 @@
     finca=f;simulado=$('sensor-modo').value==='true';primerSensor=true;pendienteAuto=false;firma='';refrescar();
   };
   $('sensor-demo').onclick=async()=>{
-    if(!conectado){$('sensor-error').textContent='El escenario requiere el servidor local. Abre iniciar.command.';return;}
+    if(!conectado){$('sensor-error').textContent='El escenario requiere el servidor local. Abre iniciar.command o ejecuta python3 iniciar.py.';return;}
     $('sensor-demo').disabled=true;
     try{const s=await api('/api/simular',{});finca='demo';simulado=true;$('sensor-finca').value=finca;$('sensor-modo').value='true';mostrarSensores(s);firma='';primerSensor=false;$('sensor-error').textContent='';}
     catch(e){$('sensor-error').textContent=e.message;}finally{$('sensor-demo').disabled=false;}
@@ -167,7 +167,8 @@
     document.body.classList.add('gamma-web');
     $('gemma-estado').textContent='Gemma está apagado en la versión web';
     $('sensor-estado').textContent='Sin conexión con el equipo de la finca.';
-    $('chat-respuestas').innerHTML='<div class="gamma-notice">Esta es la versión web: Gemma corre en el equipo de la finca, una PC o la Jetson, sin internet. Toca una de las preguntas sugeridas para ver un ejemplo con las cifras, la gráfica y los hallazgos verificados que salen del registro. Para escribir preguntas propias hace falta el equipo de la finca.</div>';
+    $('chat-respuestas').innerHTML='<div class="gamma-notice">Esta es la versión web: Gemma corre en el equipo de la finca, una PC o la Jetson, sin internet. Toca una de las preguntas sugeridas para ver un ejemplo con las cifras, la gráfica y los hallazgos verificados que salen del registro. Para escribir preguntas propias hace falta el equipo de la finca.'+comoEncender()+'</div>';
+    const b=$('gemma-conectar');if(b)b.onclick=()=>{const u=new URL(location.href);u.searchParams.set('gemma','local');location.href=u.href;};
     $('sensor-resumen').innerHTML='<div class="gamma-notice">Esta es la versión web: los sensores llegan por MQTT al equipo de la finca. Toca <b>Cargar escenario simulado</b> para ver un ejemplo con una caída de producción y una alerta de calor.</div>';
     ['chat-enviar','chat-pregunta','sensor-aplicar','sensor-finca','sensor-modo','sensor-auto'].forEach(id=>{$(id).disabled=true;});
     $('chat-alcance').value='hato';$('chat-alcance').disabled=true;
@@ -181,11 +182,43 @@
       $('sensor-estado').textContent='Escenario simulado de la finca demo, calculado al generar esta página: '+GAMMA_EJEMPLOS.sensores.eventos+' eventos.';
     };
   }
+  // Gemma corre en el equipo. Si el dashboard se abre desde otra página (por ejemplo, el dashboard de AIOROS),
+  // solo busca el servidor local cuando la página lo pide: con window.GAMMA_SERVIDOR o con ?gemma=local en la dirección.
+  // Ese servidor debe autorizar la página con iniciar.py --origen. Así quien solo mira la web no recibe avisos del navegador.
+  // iniciar.py usa el 8765 o, si otro programa lo ocupa, uno de los cuatro siguientes
+  const LOCAL='http://127.0.0.1:8765',LOCALES=[0,1,2,3,4].map(i=>'http://127.0.0.1:'+(8765+i));
+  function servidoresPedidos(){
+    if(typeof window.GAMMA_SERVIDOR==='string'&&/^https?:\/\/[^/?#]+\/?$/.test(window.GAMMA_SERVIDOR))return [window.GAMMA_SERVIDOR.replace(/\/+$/,'')];
+    const q=new URLSearchParams(location.search).get('gemma');
+    if(q===null)return [];
+    if(q===''||q==='local')return LOCALES;
+    return /^http:\/\/(127\.0\.0\.1|localhost):\d{2,5}$/.test(q)?[q]:[];
+  }
+  function comoEncender(){
+    const web=/^https?:$/.test(location.protocol),pedido=servidoresPedidos().length>0;
+    if(!web)return '<details><summary>Encender Gemma</summary><p>En la carpeta del proyecto ejecuta <code>python3 iniciar.py</code> (en Mac, abre <code>iniciar.command</code>). Se abre solo el dashboard con Gemma, normalmente en <code>'+LOCAL+'</code>.</p></details>';
+    return '<details'+(pedido?' open':'')+'><summary>Encender Gemma en esta página</summary>'+(pedido?'<p><b>No se encontró a Gemma en este equipo.</b> Revisa que iniciar.py siga abierto y que incluya este <code>--origen</code>.</p>':'')+
+      '<p>1. En el equipo donde abres esta página, dentro de la carpeta del proyecto, ejecuta:<br><code>python3 iniciar.py --origen '+esc(location.origin)+'</code></p>'+
+      '<p>2. Cuando diga «Gamma listo», toca el botón. Si el navegador pregunta si la página puede usar otros servicios de este equipo, responde que sí.</p>'+
+      '<p><button class="enlace" type="button" id="gemma-conectar">Conectar con el Gemma de este equipo</button></p></details>';
+  }
+  async function enlazar(c){
+    base=c;
+    const s=await api('/api/sesion',undefined,5000);
+    if(typeof s.token!=='string'||!s.token)throw new Error('Respuesta sin sesión de Gamma');
+    token=s.token;
+    const e=await api('/api/estado',undefined,10000);
+    if(e.servicio!=='Gamma')throw new Error('Otro servicio en esa dirección');
+    conectado=true;
+    $('gemma-estado').textContent=e.gemma.mensaje;$('gemma-estado').className='gamma-status '+(e.gemma.disponible?'listo':'');
+  }
   async function conectar(){
-    if(!/^https?:$/.test(location.protocol)){modoWeb();return;}
-    try{const s=await api('/api/sesion',undefined,5000);token=s.token;conectado=true;const e=await api('/api/estado',undefined,10000);
-      $('gemma-estado').textContent=e.gemma.mensaje;$('gemma-estado').className='gamma-status '+(e.gemma.disponible?'listo':'');await refrescar();
-    }catch(e){conectado=false;modoWeb();}
+    const candidatos=[];
+    if(/^https?:$/.test(location.protocol))candidatos.push('');
+    servidoresPedidos().forEach(c=>{if(c!==location.origin)candidatos.push(c);});
+    for(const c of candidatos){try{await enlazar(c);break;}catch(e){conectado=false;base='';token='';}}
+    if(!conectado){modoWeb();return;}
+    await refrescar();
   }
   conectar();setInterval(()=>{if(!document.hidden)refrescar();},3000);
   window.GammaUI={calculoEconomico,dibujarGrafica};

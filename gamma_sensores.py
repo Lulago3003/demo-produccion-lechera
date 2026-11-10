@@ -6,11 +6,10 @@ import math
 import re
 import sqlite3
 from statistics import mean
-from zoneinfo import ZoneInfo
 
-from gamma_core import RAIZ, leer, numero, predecir
+from gamma_core import RAIZ, leer, numero, predecir, zona_panama
 
-PANAMA = ZoneInfo("America/Panama")
+PANAMA = zona_panama()
 
 
 def identificador(v, nombre):

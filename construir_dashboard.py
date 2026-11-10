@@ -5,9 +5,8 @@ import json
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
-from gamma_core import economia
+from gamma_core import economia, zona_panama
 
 RAIZ = Path(__file__).parent
 D = json.loads((RAIZ / "salida" / "datos_demo.json").read_text(encoding="utf-8"))
@@ -15,7 +14,7 @@ D = json.loads((RAIZ / "salida" / "datos_demo.json").read_text(encoding="utf-8")
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
          "septiembre", "octubre", "noviembre", "diciembre"]
-hoy = datetime.now(ZoneInfo("America/Panama")).date()
+hoy = datetime.now(zona_panama()).date()
 fecha = f"{DIAS[hoy.weekday()]} {hoy.day} de {MESES[hoy.month - 1]} de {hoy.year}"
 
 r, m = D["resumen"], D["modelo"]

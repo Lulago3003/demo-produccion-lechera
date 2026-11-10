@@ -6,6 +6,17 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent
 
 
+def zona_panama():
+    """Hora de Panamá: UTC−5 todo el año, sin horario de verano. En Windows, Python no trae la base de zonas
+    horarias si no se instala el paquete tzdata; el desfase fijo da exactamente la misma hora."""
+    from datetime import timedelta, timezone
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    try:
+        return ZoneInfo("America/Panama")
+    except ZoneInfoNotFoundError:
+        return timezone(timedelta(hours=-5), "America/Panama")
+
+
 def leer(nombre):
     return json.loads((RAIZ / nombre).read_text(encoding="utf-8"))
 
