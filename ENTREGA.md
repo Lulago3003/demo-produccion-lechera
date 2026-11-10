@@ -14,14 +14,19 @@ cd demo_ganaderia
 ```
 
 El lanzador comprueba Ollama y Gemma, genera el dashboard, inicia el servidor y abre
-`http://127.0.0.1:8765`. Conserva esa terminal abierta; **Ctrl+C** cierra los procesos
+`http://127.0.0.1:8765` (o el siguiente puerto libre, si otro programa usa el 8765). Conserva esa terminal abierta; **Ctrl+C** cierra los procesos
 que inició. `--sin-abrir` evita abrir otra pestaña. Si ya existe un servicio Gamma en ese
 puerto, reutiliza esa sesión y no la cierra al salir.
 
 En este equipo el ejecutable ya está en `.runtime/ollama` y el modelo está descargado en
 `.local/ollama/`. En una instalación nueva de macOS, el lanzador descarga el ejecutable
 oficial de Ollama 0.40.13, verifica su SHA-256 y descarga el modelo. Se requieren Python
-3.11 o posterior y unos 4 GB de disco para el modelo y el motor. La memoria y la velocidad
+3.11 o posterior y unos 4 GB de disco para el modelo y el motor. En Windows y Linux, Ollama
+se instala aparte desde https://ollama.com/download.
+
+Para no descargar Gemma, `python3 iniciar.py --pesos RUTA` lo instala desde la copia sin
+internet: el ZIP de Drive o la parte `.001` de GitHub, con la `.002` en la misma carpeta. Antes
+de instalar comprueba la huella de la copia y, si una parte está incompleta, dice cuál. La memoria y la velocidad
 dependen del equipo; la Jetson debe medirse aparte.
 
 Tras la descarga, el sistema puede funcionar sin internet. La tipografía Barlow va incrustada en el

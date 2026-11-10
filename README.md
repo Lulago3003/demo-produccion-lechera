@@ -16,7 +16,12 @@ Con https://lulago3003.github.io/demo-produccion-lechera/#recorrido se abre un r
 que explica cada pestaña.
 
 **Versión completa, en el equipo:** abre `iniciar.command` en macOS o ejecuta
-`python3 iniciar.py`; se abre en http://127.0.0.1:8765 con Gemma y los sensores activos.
+`python3 iniciar.py` (en Windows, `python iniciar.py`); se abre en http://127.0.0.1:8765 con Gemma
+y los sensores activos. Si otro programa usa el 8765, el lanzador toma el siguiente puerto libre y
+lo indica. En Windows y Linux hay que instalar antes [Ollama](https://ollama.com/download).
+
+**Gemma dentro de otro dashboard** (por ejemplo, el de AIOROS): ver
+[INTEGRACION.md](INTEGRACION.md#gemma-dentro-de-otro-dashboard).
 
 - [Guía para presentar el dashboard, pestaña por pestaña](GUIA_PRESENTACION.md)
 - [Entrega, uso, alcance y pendientes reales](ENTREGA.md)

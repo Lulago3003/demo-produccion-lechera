@@ -34,6 +34,10 @@ En el equipo de desarrollo están en `.local/ollama/`, que no se sube a Git.
 
 ## Cómo obtener los mismos pesos
 
+- **Desde la copia sin internet:** `python3 iniciar.py --pesos Gemma3-4B-Q4KM-AIOROS.zip` (el ZIP de
+  Drive) o `python3 iniciar.py --pesos Gemma3-4B-Q4KM-AIOROS.zip.001` (las partes de GitHub, las dos
+  en la misma carpeta, sin unirlas antes). Comprueba la huella, dice qué parte falta o está incompleta
+  e instala los pesos en `.local/ollama/`.
 - **Con el lanzador:** `iniciar.command` (o `python3 iniciar.py`) los descarga la primera vez
   y comprueba que la huella de los pesos sea la de la tabla. Si no coincide, avisa: otra
   versión de `gemma3:4b` funciona igual, pero sus respuestas pueden variar.
@@ -50,14 +54,16 @@ del repositorio de AIOROS, listos para usar sin internet. Sirven, por ejemplo, p
 una Jetson sin conexión.
 
 GitHub no acepta archivos de más de 100 MB dentro del repositorio, y los adjuntos de una
-versión publicada llegan a 2 GB por archivo. Por eso el ZIP de 3.35 GB va en dos partes:
+versión publicada llegan a 2 GB por archivo. Por eso el ZIP de 3.35 GB va en dos partes. Cada
+parte sola no se abre: son dos mitades del mismo ZIP. La forma más simple es no unirlas y usar
+`python3 iniciar.py --pesos Gemma3-4B-Q4KM-AIOROS.zip.001`.
 
 | Parte | Bytes |
 |---|---|
 | `Gemma3-4B-Q4KM-AIOROS.zip.001` | 1,782,579,200 |
 | `Gemma3-4B-Q4KM-AIOROS.zip.002` | 1,567,717,425 |
 
-Se unen así:
+Para unirlas a mano:
 
 - **Mac o Linux:** `cat Gemma3-4B-Q4KM-AIOROS.zip.001 Gemma3-4B-Q4KM-AIOROS.zip.002 > Gemma3-4B-Q4KM-AIOROS.zip`
 - **Windows:** se abre la parte `.001` con 7-Zip, o en la consola:

@@ -6,6 +6,33 @@ El token local se genera en `.local/api-token` con permisos de propietario. No d
 a Git ni incorporarse a una web pública. `/api/sesion` permite al dashboard del mismo
 origen obtenerlo; **no publicar ese endpoint sin una capa de autenticación**.
 
+## Gemma dentro de otro dashboard
+
+Gemma corre en el equipo, nunca en la web. Si el dashboard se publica en otra página (por ejemplo,
+el dashboard de AIOROS), esa página puede usar el Gemma del equipo donde se abre:
+
+1. En ese equipo, dentro de la carpeta del proyecto, iniciar Gamma autorizando el origen de la página
+   (esquema y dominio, sin ruta):
+
+   ```bash
+   python3 iniciar.py --origen https://panel.aioros.tech
+   ```
+
+   Se puede repetir `--origen` para varias páginas. También sirve la variable
+   `GAMMA_ORIGENES=https://a.ejemplo,https://b.ejemplo`.
+2. Abrir la página con `?gemma=local` al final de la dirección, por ejemplo
+   `https://panel.aioros.tech/gamma/?gemma=local#gemma`. Si la página no lo lleva, la pestaña
+   Asistente Gemma ofrece **Conectar con el Gemma de este equipo**, que hace lo mismo. Si
+   se integra el código y no la página, basta con definir `window.GAMMA_SERVIDOR = "http://127.0.0.1:8765"`
+   antes de cargar el dashboard.
+3. Si el navegador pregunta si la página puede usar otros servicios de este equipo, responder que sí.
+
+Sin `?gemma=local` la página no busca a Gemma, para que quien solo la mira no reciba avisos del
+navegador. Gamma solo escucha en `127.0.0.1`: la página y Gemma deben estar en el mismo equipo.
+Cualquier otro origen sigue rechazado con `403`. El lanzador usa el puerto 8765 o, si otro programa
+lo ocupa (por ejemplo, el servicio de Logitech), uno de los cuatro siguientes; `?gemma=local` los
+prueba todos.
+
 | Método y ruta | Uso |
 |---|---|
 | `GET /api/estado` | Estado del servidor y disponibilidad del modelo Gemma. |
