@@ -31,6 +31,21 @@ Opciones, delante del comando: `ZONA=us-central1-a`, `TIPO=n2-standard-8`, `VM=o
 Para no gastar mientras no se usa: `gcloud compute instances stop gamma-gemma --zone us-east1-b`.
 Con `start` vuelve en un par de minutos, con la misma dirección.
 
+### Sin Cloud Shell: desde la consola
+
+Si Cloud Shell no tiene credenciales (por ejemplo, una cuenta sin verificación en dos pasos), en
+*Compute Engine → Crear instancia*: nombre `gamma-gemma`, `e2-standard-8`, Debian 12 con disco de 50 GB,
+**Permitir tráfico HTTP y HTTPS**, IP externa estática y, en *Opciones avanzadas → Automatización →
+Secuencia de comandos de inicio*:
+
+```bash
+#!/bin/bash
+curl -fsSL https://raw.githubusercontent.com/Lulago3003/demo-produccion-lechera/main/despliegue/arranque_vm.sh | bash
+```
+
+En cada encendido instala lo que falte, trae la última versión del código y levanta Gamma. La dirección
+queda en `https://IP-CON-GUIONES.sslip.io`; el registro, en `/var/log/gamma-arranque.log` de la VM.
+
 ## Conectar el dashboard que ya está publicado
 
 El dashboard de `gamma.aioros.tech/lechera` necesita saber dónde está Gemma. En `configuracion.json`:
