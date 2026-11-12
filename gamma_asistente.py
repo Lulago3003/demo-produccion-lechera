@@ -13,6 +13,8 @@ from gamma_core import economia, wood
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11435").rstrip("/")
 MODELO = os.environ.get("GEMMA_MODEL", "gemma3:4b")
+# Segundos que se espera a Gemma por consulta. Sin GPU (en CPU) conviene más.
+ESPERA_GEMMA = float(os.environ.get("GEMMA_TIMEOUT", "120"))
 TURNO = threading.BoundedSemaphore(1)
 
 # Palabras (sin tildes) con las que se reconoce el tema. Incluyen cómo se pregunta en Panamá:
@@ -271,7 +273,7 @@ def _json(r):
 def _gemma(sistema, contenido, formato, n):
     return _json(peticion("/api/chat", {"model": MODELO, "stream": False, "keep_alive": "15m",
                  "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": contenido}],
-                 "format": formato, "options": {"temperature": 0, "num_ctx": 8192, "num_predict": n}}, timeout=120))
+                 "format": formato, "options": {"temperature": 0, "num_ctx": 8192, "num_predict": n}}, timeout=ESPERA_GEMMA))
 
 
 def clasificar(pregunta):

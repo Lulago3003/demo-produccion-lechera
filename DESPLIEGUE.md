@@ -29,6 +29,12 @@ la última pregunta Cloud Run puede dejarlo encendido hasta 15 minutos antes de 
 cobra. Guardar la imagen en Artifact Registry cuesta menos de 1 USD al mes. Con máximo 1 instancia, el peor caso
 (encendido el mes entero) ronda 760 USD, así que conviene una alerta de presupuesto en Facturación.
 
+Si el proyecto todavía no tiene cuota de GPU para Cloud Run (el despliegue falla con *You do not have quota for
+using GPUs*), se pide en **IAM y administración → Cuotas** (*Total Nvidia L4 GPU allocation without zonal
+redundancy*, región us-central1, valor 1). Mientras Google la aprueba, `SIN_GPU=1 bash despliegue/cloudrun.sh`
+publica el mismo servicio en CPU (8 vCPU, 16 GiB): responde más lento y cobra solo mientras responde. Con la cuota
+aprobada, se vuelve a correr el script sin `SIN_GPU` y queda con GPU en la misma dirección.
+
 En organizaciones creadas desde 2024, la cuenta de servicio que construye la imagen no tiene permisos por
 defecto. El script no cambia permisos: si falta `roles/run.builder`, muestra el comando para que lo corra el
 administrador del proyecto.

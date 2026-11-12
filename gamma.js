@@ -108,12 +108,14 @@
       $('gemma-estado').textContent='Gemma está leyendo los datos…';
       const conVaca=$('chat-alcance').value==='vaca'||/esta vaca|seleccionada/.test(p.toLowerCase());
       const consulta={pregunta:p,vaca:conVaca?seleccion:null,precio_litro:precio,densidad_kg_litro:densidad,finca,simulado,historial:historial.slice(-3),tema:automatico?'sensores':'auto'};
+      // en la nube Gemma puede estar en CPU mientras llega la GPU: se le da más tiempo
+      const espera=nube?290000:150000;
       let r;
-      try{r=await api('/api/chat',consulta);}
+      try{r=await api('/api/chat',consulta,espera);}
       catch(e){
         // en la nube, si Gemma se apagó por falta de uso, la sesión anterior ya no sirve: se vuelve a encender
         if(!nube||e.status!==401)throw e;
-        conectado=false;await despertar();$('gemma-estado').textContent='Gemma está leyendo los datos…';r=await api('/api/chat',consulta);
+        conectado=false;await despertar();$('gemma-estado').textContent='Gemma está leyendo los datos…';r=await api('/api/chat',consulta,espera);
       }
       if(r.vaca_consultada){mostrar(r.vaca_consultada);$('chat-alcance').value='vaca';}
       mostrarRespuesta(p,r);historial.push(p);if(historial.length>10)historial.shift();
