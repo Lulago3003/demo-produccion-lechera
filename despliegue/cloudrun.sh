@@ -8,7 +8,7 @@ set -euo pipefail
 PROYECTO="${PROYECTO:-$(gcloud config get-value project 2>/dev/null)}"
 REGION="${REGION:-us-central1}"
 SERVICIO="${SERVICIO:-gamma-gemma}"
-ORIGENES="${GAMMA_ORIGENES:-https://gamma.aioros.tech}"
+ORIGENES="${GAMMA_ORIGENES:-https://gamma.aioros.tech,https://gamma-aioros.web.app}"
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 G=(--project "$PROYECTO")
 
@@ -55,7 +55,7 @@ CLOUDSDK_BUILDS_TIMEOUT=3600 gcloud beta run deploy "$SERVICIO" "${G[@]}" --regi
   --min-instances 0 --max-instances 1 --concurrency 4 --timeout 300 \
   --startup-probe tcpSocket.port=8080,initialDelaySeconds=0,failureThreshold=1,timeoutSeconds=240,periodSeconds=240 \
   --no-invoker-iam-check \
-  --set-env-vars "GAMMA_ORIGENES=$ORIGENES"
+  --set-env-vars "^@^GAMMA_ORIGENES=$ORIGENES"
 rm -rf "$construccion"
 
 URL=$(gcloud run services describe "$SERVICIO" "${G[@]}" --region "$REGION" --format='value(status.url)')
