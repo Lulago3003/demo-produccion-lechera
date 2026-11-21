@@ -417,4 +417,47 @@ class ModoServidor(unittest.TestCase):
         self.assertEqual(ctx.exception.code,403)
 
 
+NODO_PUERTA = r"""
+const fs = require('fs');
+const [host, hash] = process.argv.slice(1);
+const clases = new Set(); let reemplazos = 0;
+global.window = {GAMMA_ACCESO: JSON.parse(fs.readFileSync('configuracion.json', 'utf8')).acceso};
+global.location = {hostname: host, hash, pathname: '/lechera', search: ''};
+global.history = {replaceState() { reemplazos++; location.hash = ''; }};
+global.document = {documentElement: {classList: {add: c => clases.add(c), remove: c => clases.delete(c)}},
+  head: {appendChild() {}}, body: null, addEventListener() {}, getElementById() { return null; }, createElement() { return {}; }};
+eval(fs.readFileSync('acceso.js', 'utf8'));
+setTimeout(() => console.log(JSON.stringify({oculto: clases.has('gamma-puerta'), reemplazos, hash: location.hash})), 50);
+"""
+
+
+class Acceso(unittest.TestCase):
+    """La puerta del dashboard publicado: solo en los dominios de AIOROS, nunca en el equipo ni la Jetson."""
+
+    def test_puerta_antes_del_cuerpo_y_sin_indexar(self):
+        html = Path("index.html").read_text(encoding="utf-8")
+        cabeza = html[:html.index("<body>")]
+        self.assertIn('<meta name="robots" content="noindex,nofollow">', cabeza)
+        self.assertIn("var GAMMA_ACCESO=", cabeza)
+        self.assertIn('"gamma.aioros.tech"', cabeza)
+
+    def nodo(self, host, hash=""):
+        import shutil, subprocess
+        if not shutil.which("node"):
+            self.skipTest("sin node")
+        r = subprocess.run(["node", "-e", NODO_PUERTA, host, hash], capture_output=True, text=True, timeout=20)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_sin_puerta_fuera_de_aioros(self):
+        for host in ("127.0.0.1", "localhost", "192.168.1.20", ""):
+            self.assertEqual(self.nodo(host, "#sso=abc"), {"oculto": False, "reemplazos": 0, "hash": "#sso=abc"})
+
+    def test_puerta_en_gamma_y_borra_el_token_de_la_barra(self):
+        r = self.nodo("gamma.aioros.tech", "#sso=abc")
+        self.assertTrue(r["oculto"])
+        self.assertEqual((r["reemplazos"], r["hash"]), (1, ""))
+        self.assertEqual(self.nodo("gamma.aioros.tech", "#sensores")["reemplazos"], 0)
+
+
 if __name__=='__main__':unittest.main()

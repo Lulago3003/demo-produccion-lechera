@@ -97,6 +97,8 @@ reemplazos = {
     "{{GAMMA_CONFIG}}": (RAIZ / "configuracion.json").read_text(encoding="utf-8").replace("<", "\\u003c"),
     "{{GAMMA_JS}}": (RAIZ / "gamma.js").read_text(encoding="utf-8"),
     "{{RECORRIDO_JS}}": (RAIZ / "recorrido.js").read_text(encoding="utf-8"),
+    "{{GAMMA_ACCESO}}": json.dumps(cfg.get("acceso", {}), ensure_ascii=False).replace("<", "\\u003c"),
+    "{{ACCESO_JS}}": (RAIZ / "acceso.js").read_text(encoding="utf-8"),
     "{{GAMMA_EJEMPLOS}}": json.dumps(ejemplos_web(), ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c"),
 }
 html = (RAIZ / "plantilla.html").read_text(encoding="utf-8")
