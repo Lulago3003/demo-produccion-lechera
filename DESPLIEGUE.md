@@ -43,6 +43,14 @@ Al final imprime la dirección del servicio. En el dashboard publicado se pone e
 Con esa configuración, el dashboard no consulta al servidor al abrirse: Gemma solo se enciende cuando alguien
 escribe una pregunta, y si se apagó por falta de uso, se vuelve a encender sola en la siguiente.
 
+### El agente de AIOROS Beta usa este mismo servidor
+
+El tablero de Beta (beta.aioros.tech) pregunta a este mismo Gemma por `POST /api/beta/agente`
+(`beta_agente.py`): manda la pregunta y los equipos que tiene en pantalla, Gemma redacta solo con eso y
+cada cifra se comprueba antes de devolverla; si algo no cuadra, el tablero contesta con su simulación.
+Así hay un solo modelo y una sola GPU para los dos. Por eso `https://beta.aioros.tech` va en
+`GAMMA_ORIGENES` de `cloudrun.sh`.
+
 ## En una VM de Google Cloud, siempre encendida
 
 En la consola de Google Cloud, con el proyecto elegido arriba, abrir **Cloud Shell** (el ícono `>_`) y pegar:

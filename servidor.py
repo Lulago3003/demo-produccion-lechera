@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 from gamma_core import RAIZ, economia, leer, predecir
 from gamma_sensores import Registro, simular
 from gamma_asistente import estado, responder
+from beta_agente import responder_beta
 
 
 def normalizar_origen(origen):
@@ -195,7 +196,7 @@ def crear_servidor(port=8765, registro=None, origenes=(), host="127.0.0.1", publ
                 return self.json({"error": "Este servidor no recibe registros: define GAMMA_CLAVE"}, 403)
             if not con_permiso(self.headers.get("X-Gamma-Token", ""), ruta):
                 return self.json({"error": "Token de sesión requerido"}, 401)
-            if publico and ruta in ("/api/chat", "/api/simular") and not limite.permitir(self.cliente()):
+            if publico and ruta in ("/api/chat", "/api/simular", "/api/beta/agente") and not limite.permitir(self.cliente()):
                 return self.json({"error": "Hay muchas preguntas seguidas; espera un minuto y vuelve a intentarlo."}, 429)
             if self.headers.get_content_type() != "application/json":
                 return self.json({"error": "Content-Type debe ser application/json"}, 415)
@@ -209,6 +210,10 @@ def crear_servidor(port=8765, registro=None, origenes=(), host="127.0.0.1", publ
                     raise ValueError("Se requiere un objeto JSON")
                 if ruta == "/api/chat":
                     return self.json(responder(datos, registro, cuerpo))
+                if ruta == "/api/beta/agente":
+                    # El agente de AIOROS Beta usa este mismo Gemma (ver beta_agente.py)
+                    estado_http, r = responder_beta(cuerpo)
+                    return self.json(r, estado_http)
                 if ruta == "/api/predecir":
                     return self.json(predecir(datos, cuerpo))
                 if ruta == "/api/sensores":

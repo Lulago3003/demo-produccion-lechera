@@ -8,7 +8,7 @@ set -euo pipefail
 PROYECTO="${PROYECTO:-$(gcloud config get-value project 2>/dev/null)}"
 REGION="${REGION:-us-central1}"
 SERVICIO="${SERVICIO:-gamma-gemma}"
-ORIGENES="${GAMMA_ORIGENES:-https://gamma.aioros.tech,https://gamma-aioros.web.app}"
+ORIGENES="${GAMMA_ORIGENES:-https://gamma.aioros.tech,https://gamma-aioros.web.app,https://beta.aioros.tech}"
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 # SIN_GPU=1: Gemma en CPU mientras Google aprueba la cuota de GPU. Misma dirección; después se vuelve a correr sin SIN_GPU.
 SIN_GPU="${SIN_GPU:-0}"

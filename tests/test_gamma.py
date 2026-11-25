@@ -367,6 +367,16 @@ class ModoServidor(unittest.TestCase):
         return urlopen(Request(self.url+ruta,data=json.dumps(body).encode(),
                                headers={'Content-Type':'application/json','X-Gamma-Token':token,**headers}),timeout=5)
 
+    @patch("beta_agente._gemma", return_value={"texto": "El Blast freezer 1 está en alerta: cruza el límite de 96 u en 14 minutos.",
+                                                 "equipos": ["blast-freezer-1"]})
+    def test_agente_de_beta(self, _):
+        with self.post('/api/beta/agente', consulta_beta(), self.lectura, Origin=self.PANEL) as r:
+            d = json.load(r)
+        self.assertEqual((d['motor'], d['equipos']), ('gemma', ['blast-freezer-1']))
+        with self.assertRaises(HTTPError) as ctx:
+            self.post('/api/beta/agente', consulta_beta(), 'token-falso', Origin=self.PANEL)
+        self.assertEqual(ctx.exception.code, 401)
+
     def test_dominio_propio_y_estado(self):
         with urlopen(Request(self.url+'/api/estado',headers={'Host':'gemma.invalid'})) as r:
             self.assertEqual(json.load(r)['modo'],'servidor')
@@ -415,6 +425,66 @@ class ModoServidor(unittest.TestCase):
         with self.assertRaises(HTTPError) as ctx:
             urlopen(Request(url+'/api/sensores',data=json.dumps(diario()).encode(),headers={'Content-Type':'application/json','X-Gamma-Token':tok}))
         self.assertEqual(ctx.exception.code,403)
+
+
+def equipo_beta(**kw):
+    return {"id": "cuarto-frio-principal", "nombre": "Cuarto frío principal", "sensor": "Temperature", "estado": "ok",
+            "valor": 89.12, "limite": 91, "final": 88.98, "rango": [88.5, 88.98], "tendencia_h": -0.26, "cruce_min": None, **kw}
+
+
+def consulta_beta(**kw):
+    return {"pregunta": "¿Cómo está el cuarto frío principal?", "idioma": "es",
+            "equipos": [equipo_beta(), equipo_beta(id="blast-freezer-1", nombre="Blast freezer 1", estado="alert",
+                                                   valor=95.4, limite=96, cruce_min=14)],
+            "pasada": {"fecha": "2026-10-20", "horizonte_min": 32}, **kw}
+
+
+class BetaAgente(unittest.TestCase):
+    """El agente de AIOROS Beta con el mismo Gemma: solo datos de la pantalla y cifras comprobadas."""
+
+    def test_rechaza_lo_que_no_viene_del_tablero(self):
+        from beta_agente import validar
+        for malo in ({"pregunta": ""}, consulta_beta(idioma="fr"), consulta_beta(equipos=[]),
+                     consulta_beta(equipos=[equipo_beta(id="../x")]), consulta_beta(equipos=[equipo_beta(estado="roto")]),
+                     consulta_beta(equipos=[equipo_beta(valor="89")]), consulta_beta(equipos=[equipo_beta(), equipo_beta()]),
+                     consulta_beta(pregunta="x" * 401), consulta_beta(equipos=[equipo_beta(rango=[1])])):
+            with self.assertRaises(ValueError):
+                validar(malo)
+
+    @patch("beta_agente._gemma", return_value={"texto": "El cuarto frío principal está en 89.12 u, 1.88 por debajo del límite de 91 u.",
+                                                 "equipos": ["cuarto-frio-principal", "inventado"]})
+    def test_redaccion_verificada(self, _):
+        from beta_agente import responder_beta
+        estado, r = responder_beta(consulta_beta())
+        self.assertEqual((estado, r["motor"]), (200, "gemma"))
+        self.assertEqual(r["equipos"], ["cuarto-frio-principal"])
+
+    @patch("beta_agente._gemma", return_value={"texto": "El cuarto frío principal llegará a 104.7 u en una hora.", "equipos": []})
+    def test_cifra_inventada_no_pasa(self, _):
+        from beta_agente import responder_beta
+        self.assertEqual(responder_beta(consulta_beta())[0], 422)
+
+    @patch("beta_agente._gemma", return_value={"texto": "El Blast freezer 1 está en 95.4 u, superando el límite de 96 u.", "equipos": []})
+    def test_no_dice_que_supera_si_esta_por_debajo(self, _):
+        from beta_agente import responder_beta
+        self.assertEqual(responder_beta(consulta_beta())[0], 422)
+
+    @patch("beta_agente._gemma", return_value={"texto": "El Blast freezer 1 no supera el límite de 96 u, pero lo cruza en 14 minutos.", "equipos": []})
+    def test_negar_que_supera_si_se_permite(self, _):
+        from beta_agente import responder_beta
+        self.assertEqual(responder_beta(consulta_beta())[0], 200)
+
+    def test_la_situacion_la_escribe_el_codigo(self):
+        from beta_agente import validar
+        _, _, c = validar(consulta_beta())
+        self.assertEqual(c["equipos"][1]["situacion"], "lectura por debajo del límite; el pronóstico cruza el límite en 14 minutos")
+        _, _, c = validar(consulta_beta(idioma="en"))
+        self.assertIn("does not cross", c["equipos"][0]["situacion"])
+
+    @patch("beta_agente._gemma", side_effect=OSError("sin Ollama"))
+    def test_sin_gemma(self, _):
+        from beta_agente import responder_beta
+        self.assertEqual(responder_beta(consulta_beta())[0], 503)
 
 
 NODO_PUERTA = r"""

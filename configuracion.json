@@ -23,7 +23,7 @@
       "gamma",
       "lechera"
     ],
-    "portal": "https://aioros.tech/mis-servicios",
+    "portal": "https://aioros.tech/?entrar=gamma",
     "firebase": {
       "apiKey": "AIzaSyAda6JIhWg6xdOVwLsRslpgJDxBkmK3OjA",
       "authDomain": "cs-poc-yfxkwcqxjfhpzpqhicir6vu.firebaseapp.com",
